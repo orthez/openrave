@@ -377,7 +377,7 @@ else()
   set(EXTRA_COMPILE_FLAGS "")
 endif()
 
-set(NATIVE_COMPILE_FLAGS "-march=native -mtune=native")
+set(NATIVE_COMPILE_FLAGS "")#-march=native -mtune=native")
 
 # generate the md5 sum for all OpenRAVE interfaces
 add_subdirectory(cpp-gen-md5)
