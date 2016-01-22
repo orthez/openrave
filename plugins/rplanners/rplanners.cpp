@@ -16,6 +16,7 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "openraveplugindefs.h"
 #include "rrt.h"
+#include "kinorrt.h"
 
 #include <openrave/plugin.h>
 
@@ -50,6 +51,9 @@ InterfaceBasePtr CreateInterfaceValidated(InterfaceType type, const std::string&
         }
         else if( interfacename == "explorationrrt" ) {
             return InterfaceBasePtr(new ExplorationPlanner(penv));
+        }
+        else if( interfacename == "kinorrt") {
+            return InterfaceBasePtr(new KinodynamicRRTPlanner(penv));
         }
         else if( interfacename == "graspgradient" ) {
             return CreateGraspGradientPlanner(penv,sinput);
@@ -94,6 +98,7 @@ void GetPluginAttributesValidated(PLUGININFO& info)
     info.interfacenames[PT_Planner].push_back("BiRRT");
     info.interfacenames[PT_Planner].push_back("BasicRRT");
     info.interfacenames[PT_Planner].push_back("ExplorationRRT");
+    info.interfacenames[PT_Planner].push_back("KinodynamicRRT");
     info.interfacenames[PT_Planner].push_back("GraspGradient");
     info.interfacenames[PT_Planner].push_back("shortcut_linear");
     info.interfacenames[PT_Planner].push_back("LinearTrajectoryRetimer");
