@@ -837,6 +837,63 @@ protected:
 
 typedef boost::shared_ptr<BasicRRTParameters> BasicRRTParametersPtr;
 
+class OPENRAVE_API KinodynamicRRTParameters : public PlannerBase::PlannerParameters
+{
+public:
+    KinodynamicRRTParameters() : _minimumgoalpaths(1), _bProcessing(false) {
+        _vXMLParameters.push_back("minimumgoalpaths");
+    }
+
+    size_t _minimumgoalpaths; ///< minimum number of goals to connect to before exiting. the goal with the shortest path is returned.
+
+protected:
+    bool _bProcessing;
+    virtual bool serialize(std::ostream& O, int options=0) const
+    {
+        if( !PlannerParameters::serialize(O, options&~1) ) {
+            return false;
+        }
+        O << "<minimumgoalpaths>" << _minimumgoalpaths << "</minimumgoalpaths>" << std::endl;
+        if( !(options & 1) ) {
+            O << _sExtraParameters << std::endl;
+        }
+        return !!O;
+    }
+
+    ProcessElement startElement(const std::string& name, const AttributesList& atts)
+    {
+        if( _bProcessing ) {
+            return PE_Ignore;
+        }
+        switch( PlannerBase::PlannerParameters::startElement(name,atts) ) {
+        case PE_Pass: break;
+        case PE_Support: return PE_Support;
+        case PE_Ignore: return PE_Ignore;
+        }
+
+        _bProcessing = name=="minimumgoalpaths";
+        return _bProcessing ? PE_Support : PE_Pass;
+    }
+
+    virtual bool endElement(const std::string& name)
+    {
+        if( _bProcessing ) {
+            if( name == "minimumgoalpaths") {
+                _ss >> _minimumgoalpaths;
+            }
+            else {
+                RAVELOG_WARN(str(boost::format("unknown tag %s\n")%name));
+            }
+            _bProcessing = false;
+            return false;
+        }
+
+        // give a chance for the default parameters to get processed
+        return PlannerParameters::endElement(name);
+    }
+};
+typedef boost::shared_ptr<KinodynamicRRTParameters> KinodynamicRRTParametersPtr;
+
 } // OpenRAVE
 
 #endif

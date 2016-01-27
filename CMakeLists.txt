@@ -3,6 +3,7 @@ project(OpenRAVE)
 set( CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS TRUE )
 
 # Define here the needed parameters
+#set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 set (OPENRAVE_VERSION_MAJOR 0)
 set (OPENRAVE_VERSION_MINOR 9)
 set (OPENRAVE_VERSION_PATCH 0)
@@ -15,6 +16,15 @@ message(STATUS "Using cmake version ${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION
 cmake_policy(SET CMP0002 NEW)
 # http://www.cmake.org/cmake/help/cmake-2.6.html#policy:CMP0003
 cmake_policy(SET CMP0003 NEW)
+
+## include(CheckCXXCompilerFlag)
+## CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+## if(COMPILER_SUPPORTS_CXX11)
+##     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+## else()
+##         message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+## endif()
+
 
 # Use, i.e. don't skip the full RPATH for the build tree
 set(CMAKE_SKIP_BUILD_RPATH  FALSE)

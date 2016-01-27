@@ -20,6 +20,7 @@
 
 #include <openrave/plugin.h>
 
+
 PlannerBasePtr CreateShortcutLinearPlanner(EnvironmentBasePtr penv, std::istream& sinput);
 PlannerBasePtr CreateGraspGradientPlanner(EnvironmentBasePtr penv, std::istream& sinput);
 PlannerBasePtr CreateRandomizedAStarPlanner(EnvironmentBasePtr penv, std::istream& sinput);
@@ -52,7 +53,8 @@ InterfaceBasePtr CreateInterfaceValidated(InterfaceType type, const std::string&
         else if( interfacename == "explorationrrt" ) {
             return InterfaceBasePtr(new ExplorationPlanner(penv));
         }
-        else if( interfacename == "kinorrt") {
+        else if( interfacename == "kinodynamicrrt") {
+            RAVELOG_WARN("KinodynamicRRT is under development, please use with caution\n");
             return InterfaceBasePtr(new KinodynamicRRTPlanner(penv));
         }
         else if( interfacename == "graspgradient" ) {

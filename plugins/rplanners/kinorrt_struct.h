@@ -3,9 +3,11 @@
 #include <cmath>
 #include <arc_utilities/simple_rrt_planner.hpp>
 
+#define DEBUG 0
 //##############################################################################
 //build up the simple_rrt structures
 //##############################################################################
+
 using namespace simple_rrt_planner;
 
 struct Configuration{
@@ -14,6 +16,12 @@ struct Configuration{
         double t;
         Configuration(double xs,double ys,double ts){x=xs;y=ys;t=ts;};
         Configuration(){x=-1;y=-1;t=0.0;};
+        double dist(const Configuration &qq) const{
+                double dx = (x-qq.x)*(x-qq.x);
+                double dy = (y-qq.y)*(y-qq.y);
+                //double dt = (t-qq.t)*(t-qq.t);
+                return sqrtf(dx+dy);
+        }
 };
 inline std::ostream& operator<< (std::ostream& stream, const Configuration& q) {
         std::cout << "(" << q.x << "," << q.y << "," << q.t << ")";
@@ -30,6 +38,11 @@ void dump_results(const ResultsPair &res){
         Statistics stats = res.second;
         std::cout << "---------------------------------------------------" << std::endl;
         std::cout << "Generated trajectory" << std::endl;
+        std::cout << "---------------------------------------------------" << std::endl;
+        int ctr=0;
+        for ( ConfigurationPath::const_iterator it = tau.begin(); it != tau.end(); it++) {
+                cout << "[" << ctr++ << "]: " << (*it) << std::endl;
+        }
         std::cout << "---------------------------------------------------" << std::endl;
         std::cout << "Waypoints: " << tau.size() << std::endl;
         std::cout << "---------------------------------------------------" << std::endl;
@@ -53,19 +66,8 @@ SimpleRRTPlannerState<Configuration> plannerstate(start);
 //      conditions (for example, within a radius of the goal state)
 //##############################################################################
 bool goal_reached_fn( const Configuration &q ){
-        double epsilon = 0.01;
-        std::cout << epsilon << std::endl;
-        std::cout << "START" << std::endl;
-        std::cout << goal << std::endl;
-        std::cout << q << std::endl;
-        double dx = (goal.x-q.x)*(goal.x-q.x);
-        double dy = (goal.y-q.y)*(goal.y-q.y);
-        double dt = (goal.t-q.t)*(goal.t-q.t);
-        double dg = sqrtf(dx+dy+dt);
-        std::cout << "##################" << dx <<std::endl;
-        std::cout << "##################" << dy <<std::endl;
-        std::cout << "##################" << dg <<std::endl;
-        return (dg < epsilon);
+        double epsilon = 0.1;
+        return (q.dist(goal) < epsilon);
 }
 
 //##############################################################################
@@ -84,7 +86,6 @@ double rand_interval( double a, double b){
 }
 Configuration state_sampling_fn(void){
 
-        srand (time(NULL));
         const double x_min = -3.0;
         const double x_max = 3.0;
         const double y_min = -3.0;
@@ -97,6 +98,7 @@ Configuration state_sampling_fn(void){
         double rt = rand_interval(t_min,t_max);
 
         Configuration q = Configuration(rx,ry,rt);
+        if(DEBUG) std::cout << "SAMPLE:" << q << std::endl;
         return q;
 }
 
@@ -107,20 +109,38 @@ Configuration state_sampling_fn(void){
 //##############################################################################
 typedef std::pair<Configuration, int64_t> ConfigurationWaypoint;
 
+Configuration one_step_forward_propagation(const Configuration &from, const Configuration &to){
+        double lambda = 0.05;
+        double dx = lambda*(to.x - from.x);
+        double dy = lambda*(to.y - from.y);
+        double dt = lambda*(to.t - from.t);
+        Configuration qn(from.x+dx,from.y+dy,from.t+dt);
+        return qn;
+}
+
 std::vector<ConfigurationWaypoint> 
 forward_propagation_fn(const Configuration &nn, const Configuration &goal){
         //expand tree from nn -> goal using our transition functon
-        
-        double lambda = 0.05;
-        double dx = lambda*(goal.x - nn.x);
-        double dy = lambda*(goal.y - nn.y);
-        double dt = lambda*(goal.t - nn.t);
-        Configuration qn(nn.x+dx,nn.y+dy,nn.t+dt);
-        ConfigurationWaypoint qnwp;
-        qnwp.first = qn;
-        qnwp.second = 0;
+        //TODO: implement real version, not naive linear progress
+        int wpctr = -1;
+
         std::vector<ConfigurationWaypoint> waypoints;
-        waypoints.push_back(qnwp);
+
+        ConfigurationWaypoint initial;
+        initial.first = one_step_forward_propagation(nn,goal);
+        initial.second = wpctr++;
+        waypoints.push_back(initial);
+
+        if(DEBUG) std::cout << "NN" << nn <<std::endl;
+
+        for(int i = 1;i<5;i++){
+                ConfigurationWaypoint from = waypoints[i-1];
+                ConfigurationWaypoint qnwp;
+                qnwp.first = one_step_forward_propagation(from.first,goal);
+                if(DEBUG) std::cout << "[" << wpctr << "]" << qnwp.first <<std::endl;
+                qnwp.second = wpctr++;
+                waypoints.push_back(qnwp);
+        }
         return waypoints;
 }
 
@@ -128,7 +148,7 @@ forward_propagation_fn(const Configuration &nn, const Configuration &goal){
 // (6) time_limit - limit, in seconds, for the runtime of the planner
 //##############################################################################
 
-const std::chrono::duration<double> time_limit(1000.0);
+const std::chrono::duration<double> time_limit(10.0);
 
 
 
@@ -140,7 +160,23 @@ int64_t
 nearest_neighbor_fn
 (const std::vector<SimpleRRTPlannerState<Configuration>> &nodes, const Configuration &q){
 
+        std::vector<SimpleRRTPlannerState<Configuration>>::const_iterator it;
 
+        double min_dist = std::numeric_limits<double>::infinity();
+        int64_t nnidx = 0;
+        int64_t ctr = 0;
+
+        FORIT(it, nodes){
+                const Configuration qq = it->GetValueImmutable();
+                double dd = qq.dist(q);
+                if(dd < min_dist){
+                        min_dist = dd;
+                        nnidx=ctr;
+                }
+                ctr++;
+        }
+        if(DEBUG) std::cout << "NN:" << nnidx << std::endl;
+        return nnidx;
 }
 
 /*
