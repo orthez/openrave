@@ -2,7 +2,11 @@
 #include <cassert>
 #include <cmath>
 #include <openrave/openrave.h>
+#include <openrave/plannerparameters.h>
+#include <openrave/planner.h>
 #include <arc_utilities/simple_rrt_planner_vanilla.hpp>
+#include "rplanners.h"
+#include "rrt.h"
 
 #define DEBUG 0
 
@@ -24,17 +28,64 @@ struct Configuration{
                 //double dt = (t-qq.t)*(t-qq.t);
                 return sqrtf(dx+dy);
         }
-        bool IsCollisionFree(){
-                std::cout << env->GetId() << std::endl;
-                return true;
+        bool IsInCollision(){
+                //std::cout << env->GetId() << std::endl;
+                std::vector<double> dd = this->toDouble();
+                EnvironmentMutex::scoped_lock lock(Configuration::env->GetMutex());
+
+                Configuration::robot->SetDOFValues(dd);
+                CollisionReportPtr report(new CollisionReport());
+                bool collided = env->CheckCollision(robot) || robot->CheckSelfCollision();
+
+                //penv->GetCollisionChecker()->SetCollisionOptions(CO_Contacts);
+                //bool collided = Configuration::env->CheckCollision(Configuration::robot, report);
+                //if( collided ) {
+                //        std::cout << "ROBOT: " << dd[0] << "|" << dd[1] << std::endl;
+                //        int contactpoints = (int)report->contacts.size();
+                //        std::cout << contactpoints << "contacts" << endl;
+                //        for(int i = 0; i < contactpoints; ++i) {
+                //                CollisionReport::CONTACT& c = report->contacts[i];
+                //                std::cout << "contact" << i << ": pos=("
+                //                << c.pos.x << ", " << c.pos.y << ", " << c.pos.z << "), norm=("
+                //                << c.norm.x << ", " << c.norm.y << ", " << c.norm.z << ")" << endl;
+                //        }
+                //        exit(0);
+                //}
+                //bool collided = robot->CheckSelfCollision(report);
+                //RaveVector<float> red = RaveVector<float>(1,0.2,0.2,1);
+                //RaveVector<float> green = RaveVector<float>(0.2,1,0.2,1);
+
+                //float ddp[3];
+                //ddp[0]=dd[0];
+                //ddp[1]=dd[1];
+                //ddp[2]=0.9;
+                //        //std::cout << "[" << dd[0] << "|" << dd[1]<<"]";
+                //        //std::cout<< "COLLISION" << std::endl;
+                //        //std::cout << std::endl;
+                //if(collided){
+                //        handle.push_back(Configuration::env->plot3(&ddp[0], 1, 12, 10.0,red));
+                //}else{
+                //        handle.push_back(Configuration::env->plot3(&ddp[0], 1, 12, 10.0,green));
+                //}
+                return collided;
         }
+        std::vector<double> toDouble() const{
+                std::vector<double> qd;
+                qd.push_back(x);
+                qd.push_back(y);
+                return qd;
+        }
+        static PlannerBase::PlannerParametersPtr params;
         static EnvironmentBasePtr env;
         static RobotBasePtr robot;
+        static std::vector<OpenRAVE::GraphHandlePtr> handle;
         static long int samples;
         static long int samples_rejected;
 };
+PlannerBase::PlannerParametersPtr Configuration::params = NULL;
 EnvironmentBasePtr Configuration::env = NULL;
 RobotBasePtr Configuration::robot = NULL;
+std::vector<OpenRAVE::GraphHandlePtr> Configuration::handle;
 long int Configuration::samples = 0;
 long int Configuration::samples_rejected = 0;
 
@@ -116,9 +167,9 @@ double rand_interval( double a, double b){
 Configuration state_sampling_fn(void){
 
         const double x_min = -5.0;
-        const double x_max = 5.0;
+        const double x_max = 7.0;
         const double y_min = -5.0;
-        const double y_max = 5.0;
+        const double y_max = 4.0;
         const double t_min = 0.0;
         const double t_max = 2*M_PI;
 
@@ -128,7 +179,7 @@ Configuration state_sampling_fn(void){
         Configuration q = Configuration(rx,ry,rt);
 
         Configuration::samples++;
-        while(!q.IsCollisionFree()){
+        while(q.IsInCollision()){
                 Configuration::samples_rejected++;
                 rx = rand_interval(x_min,x_max);
                 ry = rand_interval(y_min,y_max);
@@ -155,6 +206,7 @@ Configuration one_step_forward_propagation(const Configuration &from, const Conf
         double dy = lambda*(to.y - from.y);
         double dt = lambda*(to.t - from.t);
         Configuration qn(from.x+dx,from.y+dy,from.t+dt);
+        Configuration::params->_checkpathconstraintsfn(from.toDouble(), qn.toDouble(), IT_OpenStart,PlannerBase::ConfigurationListPtr());
         return qn;
 }
 

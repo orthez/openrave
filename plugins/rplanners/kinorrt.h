@@ -2,8 +2,6 @@
 
 #include <boost/algorithm/string.hpp>
 #include "kinorrt_struct.h"
-#include "rplanners.h"
-#include "rrt.h"
 
 class KinodynamicRRTPlanner : public RrtPlanner<SimpleNode>
 {
@@ -14,15 +12,6 @@ public:
     }
     virtual ~KinodynamicRRTPlanner() {
     }
-
-    //struct GOALPATH
-    //{
-    //    GOALPATH() : startindex(-1), goalindex(-1), length(0) {
-    //    }
-    //    vector<dReal> qall;
-    //    int startindex, goalindex;
-    //    dReal length;
-    //};
 
     virtual bool InitPlan(RobotBasePtr pbase, PlannerParametersConstPtr pparams)
     {
@@ -57,13 +46,20 @@ public:
 
         std::cout << start_config << std::endl;
         std::cout << goal_config << std::endl;
-
         std::cout << _robot->GetName() << std::endl;
+
+        //#####################################################################
+        // Set Configuration statics
+        //#####################################################################
+
         Configuration::env = GetEnv();
         Configuration::robot = _robot;
+        Configuration::params = _parameters;
 
+        //#####################################################################
+        // Set functions for simple_rrt
+        //#####################################################################
         std::pair<std::vector<Configuration>, std::map<std::string,double> > results;
-
         std::function<int64_t(const std::vector<SimpleRRTPlannerState<Configuration>>&, const Configuration&)> nn = &(nearest_neighbor_fn);
         std::function<bool(const Configuration&, const Configuration&)> gg = &(goal_reached_fn);
         std::function<Configuration()> ss = &(state_sampling_fn);
@@ -71,7 +67,57 @@ public:
 
         EnvironmentMutex::scoped_lock lock(GetEnv()->GetMutex());
 
+        //#####################################################################
+        // Verify initial parameters
+        //#####################################################################
+            //std::list<KinBodyPtr> listCheckCollisions; listCheckCollisions.push_back(robot);
+            //boost::shared_ptr<DynamicsCollisionConstraint> pcollision(new DynamicsCollisionConstraint(params, listCheckCollisions, 0xffffffff&~CFO_CheckTimeBasedConstraints));
+            //params->_checkpathvelocityconstraintsfn = boost::bind(&DynamicsCollisionConstraint::Check,pcollision,_1, _2, _3, _4, _5, _6, _7, _8);
 
+        if( !_parameters->_checkpathconstraintsfn(_parameters->vinitialconfig,_parameters->vinitialconfig,IT_OpenStart,ConfigurationListPtr()) ) {
+            RAVELOG_WARN("Error: Initial configuration not in free space\n");
+            return PS_Failed;
+        }
+        if( start_config.IsInCollision() ){
+            RAVELOG_WARN("initial state rejected by constraint fn\n");
+            return PS_Failed;
+        }
+        if( goal_config.IsInCollision() ){
+            RAVELOG_WARN("goal state rejected by constraint fn\n");
+            return PS_Failed;
+        }
+
+        std::cout << "############################################" << std::endl;
+        std::cout << "PARAMETERS" << std::endl;
+        std::cout << "############################################" << std::endl;
+        std::cout << "configs   : " << _parameters->_configurationspecification << std::endl;
+        std::cout << "vinit     : " << init[0] << "|" << init[1] << std::endl;
+        
+            //- joint_values
+            //- joint_velocities
+            //- affine_transform
+            //- affine_velocities
+            //- grab
+            //The following internal parameters will be set:
+            //- _diffstatefn
+            //- _distmetricfn - weights used for distance metric are retrieved at this time and stored
+            //- _samplefn
+            //- _sampleneighfn
+            //- _setstatevaluesfn
+            //- _getstatefn
+            //- _neighstatefn
+            //- _checkpathconstraintsfn
+            //- _vConfigLowerLimit
+            //- _vConfigUpperLimit
+            //- _vConfigVelocityLimit
+            //- _vConfigAccelerationLimit
+            //- _vConfigResolution
+            //- vinitialconfig
+            //- _configurationspecification
+
+        //#####################################################################
+        // Planning
+        //#####################################################################
         results = SimpleHybridRRTPlanner<Configuration>::Plan( 
                         start_config, 
                         goal_config,
@@ -94,7 +140,6 @@ public:
         std::cout << "DOF:" << ptraj->GetConfigurationSpecification().GetDOF() << std::endl;
         std::cout << "Cspecification:" << _parameters->_configurationspecification << std::endl;
         std::cout << "WPS:" << Nwaypoints << std::endl;
-
 
         std::vector<dReal> tau_wps = toDouble(tau);
         std::cout<< "TAU_WPS: " << tau_wps.size() << std::endl;
