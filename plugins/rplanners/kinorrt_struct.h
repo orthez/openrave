@@ -1,7 +1,8 @@
 #include <cstdlib>
 #include <cassert>
 #include <cmath>
-#include <arc_utilities/simple_rrt_planner.hpp>
+#include <openrave/openrave.h>
+#include <arc_utilities/simple_rrt_planner_vanilla.hpp>
 
 #define DEBUG 0
 
@@ -23,10 +24,22 @@ struct Configuration{
                 //double dt = (t-qq.t)*(t-qq.t);
                 return sqrtf(dx+dy);
         }
+        bool IsCollisionFree(){
+                std::cout << env->GetId() << std::endl;
+                return true;
+        }
+        static EnvironmentBasePtr env;
+        static RobotBasePtr robot;
+        static long int samples;
+        static long int samples_rejected;
 };
+EnvironmentBasePtr Configuration::env = NULL;
+RobotBasePtr Configuration::robot = NULL;
+long int Configuration::samples = 0;
+long int Configuration::samples_rejected = 0;
 
 inline std::ostream& operator<< (std::ostream& stream, const Configuration& q) {
-        std::cout << "(" << q.x << "," << q.y << "," << q.t << ")";
+        std::cout << "(" << q.x << "," << q.y << "," << q.t << ")" << std::endl;
         return stream;
 }
 
@@ -62,6 +75,13 @@ void dump_results(const ResultsPair &res){
         for ( Statistics::const_iterator it = stats.begin(); it != stats.end(); it++) {
                 cout << it->first << ":" << it->second << endl;
         }
+        std::cout << "---------------------------------------------------" << std::endl;
+        std::cout << "Sampling" << std::endl;
+        std::cout << "---------------------------------------------------" << std::endl;
+        std::cout << "Samples: " << Configuration::samples << std::endl;
+        std::cout << "Rejected: " << Configuration::samples_rejected << std::endl;
+        std::cout << "Percentage Rejected: " << (double)Configuration::samples_rejected/(double)Configuration::samples << std::endl;
+        std::cout << "---------------------------------------------------" << std::endl;
 }
 
 //##############################################################################
@@ -95,18 +115,28 @@ double rand_interval( double a, double b){
 }
 Configuration state_sampling_fn(void){
 
-        const double x_min = -6.0;
-        const double x_max = 6.0;
-        const double y_min = -6.0;
-        const double y_max = 6.0;
+        const double x_min = -5.0;
+        const double x_max = 5.0;
+        const double y_min = -5.0;
+        const double y_max = 5.0;
         const double t_min = 0.0;
         const double t_max = 2*M_PI;
 
         double rx = rand_interval(x_min,x_max);
         double ry = rand_interval(y_min,y_max);
         double rt = rand_interval(t_min,t_max);
-
         Configuration q = Configuration(rx,ry,rt);
+
+        Configuration::samples++;
+        while(!q.IsCollisionFree()){
+                Configuration::samples_rejected++;
+                rx = rand_interval(x_min,x_max);
+                ry = rand_interval(y_min,y_max);
+                rt = rand_interval(t_min,t_max);
+                q = Configuration(rx,ry,rt);
+                Configuration::samples++;
+        }
+        
         if(DEBUG) std::cout << "SAMPLE:" << q << std::endl;
         return q;
 }
@@ -120,7 +150,7 @@ Configuration state_sampling_fn(void){
 typedef std::pair<Configuration, int64_t> ConfigurationWaypoint;
 
 Configuration one_step_forward_propagation(const Configuration &from, const Configuration &to){
-        double lambda = 0.05;
+        double lambda = 0.1;
         double dx = lambda*(to.x - from.x);
         double dy = lambda*(to.y - from.y);
         double dt = lambda*(to.t - from.t);
@@ -143,7 +173,8 @@ forward_propagation_fn(const Configuration &nn, const Configuration &goal){
 
         if(DEBUG) std::cout << "NN" << nn <<std::endl;
 
-        for(int i = 1;i<5;i++){
+        int N = 5;
+        for(int i = 1;i<N;i++){
                 ConfigurationWaypoint from = waypoints[i-1];
                 ConfigurationWaypoint qnwp;
                 qnwp.first = one_step_forward_propagation(from.first,goal);
