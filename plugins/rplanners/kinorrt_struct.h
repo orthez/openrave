@@ -4,6 +4,7 @@
 #include <arc_utilities/simple_rrt_planner.hpp>
 
 #define DEBUG 0
+
 //##############################################################################
 //build up the simple_rrt structures
 //##############################################################################
@@ -23,6 +24,7 @@ struct Configuration{
                 return sqrtf(dx+dy);
         }
 };
+
 inline std::ostream& operator<< (std::ostream& stream, const Configuration& q) {
         std::cout << "(" << q.x << "," << q.y << "," << q.t << ")";
         return stream;
@@ -30,8 +32,19 @@ inline std::ostream& operator<< (std::ostream& stream, const Configuration& q) {
 
 typedef std::vector<Configuration> ConfigurationPath;
 typedef std::map<std::string,double> Statistics;
-
 typedef std::pair<ConfigurationPath, Statistics> ResultsPair;
+
+std::vector<dReal> toDouble(const ConfigurationPath &tau){
+
+        ConfigurationPath::const_iterator it;
+        std::vector<dReal> all;
+        FOREACH(it,tau){
+                //std::cout<< it->x << "|" << it->y << std::endl;
+                all.push_back(it->x);
+                all.push_back(it->y);
+        }
+        return all;
+}
 
 void dump_results(const ResultsPair &res){
         ConfigurationPath tau = res.first;
@@ -51,21 +64,17 @@ void dump_results(const ResultsPair &res){
         }
 }
 
-
 //##############################################################################
 // (1) start - starting configuration
 //##############################################################################
-
-const Configuration start(-1,-1,0);
-const Configuration goal(2,2,0);
-
-SimpleRRTPlannerState<Configuration> plannerstate(start);
+//const Configuration goal(2,2,0);
 
 //##############################################################################
 // (3) goal_reached_fn - return if a given state meets the goal 
 //      conditions (for example, within a radius of the goal state)
 //##############################################################################
-bool goal_reached_fn( const Configuration &q ){
+
+bool goal_reached_fn( const Configuration &q, const Configuration &goal ){
         double epsilon = 0.1;
         return (q.dist(goal) < epsilon);
 }
@@ -86,10 +95,10 @@ double rand_interval( double a, double b){
 }
 Configuration state_sampling_fn(void){
 
-        const double x_min = -3.0;
-        const double x_max = 3.0;
-        const double y_min = -3.0;
-        const double y_max = 3.0;
+        const double x_min = -6.0;
+        const double x_max = 6.0;
+        const double y_min = -6.0;
+        const double y_max = 6.0;
         const double t_min = 0.0;
         const double t_max = 2*M_PI;
 
@@ -107,6 +116,7 @@ Configuration state_sampling_fn(void){
 //      target state, returns the states that would grow the tree 
 //      towards the target
 //##############################################################################
+
 typedef std::pair<Configuration, int64_t> ConfigurationWaypoint;
 
 Configuration one_step_forward_propagation(const Configuration &from, const Configuration &to){
