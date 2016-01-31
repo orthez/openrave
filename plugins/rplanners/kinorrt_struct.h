@@ -36,37 +36,6 @@ struct Configuration{
                 Configuration::robot->SetDOFValues(dd);
                 CollisionReportPtr report(new CollisionReport());
                 bool collided = env->CheckCollision(robot) || robot->CheckSelfCollision();
-
-                //penv->GetCollisionChecker()->SetCollisionOptions(CO_Contacts);
-                //bool collided = Configuration::env->CheckCollision(Configuration::robot, report);
-                //if( collided ) {
-                //        std::cout << "ROBOT: " << dd[0] << "|" << dd[1] << std::endl;
-                //        int contactpoints = (int)report->contacts.size();
-                //        std::cout << contactpoints << "contacts" << endl;
-                //        for(int i = 0; i < contactpoints; ++i) {
-                //                CollisionReport::CONTACT& c = report->contacts[i];
-                //                std::cout << "contact" << i << ": pos=("
-                //                << c.pos.x << ", " << c.pos.y << ", " << c.pos.z << "), norm=("
-                //                << c.norm.x << ", " << c.norm.y << ", " << c.norm.z << ")" << endl;
-                //        }
-                //        exit(0);
-                //}
-                //bool collided = robot->CheckSelfCollision(report);
-                //RaveVector<float> red = RaveVector<float>(1,0.2,0.2,1);
-                //RaveVector<float> green = RaveVector<float>(0.2,1,0.2,1);
-
-                //float ddp[3];
-                //ddp[0]=dd[0];
-                //ddp[1]=dd[1];
-                //ddp[2]=0.9;
-                //        //std::cout << "[" << dd[0] << "|" << dd[1]<<"]";
-                //        //std::cout<< "COLLISION" << std::endl;
-                //        //std::cout << std::endl;
-                //if(collided){
-                //        handle.push_back(Configuration::env->plot3(&ddp[0], 1, 12, 10.0,red));
-                //}else{
-                //        handle.push_back(Configuration::env->plot3(&ddp[0], 1, 12, 10.0,green));
-                //}
                 return collided;
         }
         std::vector<double> toDouble() const{
@@ -200,14 +169,17 @@ Configuration state_sampling_fn(void){
 
 typedef std::pair<Configuration, int64_t> ConfigurationWaypoint;
 
-Configuration one_step_forward_propagation(const Configuration &from, const Configuration &to){
-        double lambda = 0.1;
+bool one_step_forward_propagation(const Configuration &from, const Configuration &to, Configuration &next){
+        double lambda = 0.01;
         double dx = lambda*(to.x - from.x);
         double dy = lambda*(to.y - from.y);
         double dt = lambda*(to.t - from.t);
-        Configuration qn(from.x+dx,from.y+dy,from.t+dt);
-        Configuration::params->_checkpathconstraintsfn(from.toDouble(), qn.toDouble(), IT_OpenStart,PlannerBase::ConfigurationListPtr());
-        return qn;
+        next = Configuration(from.x+dx,from.y+dy,from.t+dt);
+        bool success = Configuration::params->_checkpathconstraintsfn(from.toDouble(), next.toDouble(), IT_OpenStart,PlannerBase::ConfigurationListPtr());
+        if( !success ){
+            return false;
+        }
+        return true;
 }
 
 std::vector<ConfigurationWaypoint> 
@@ -215,21 +187,20 @@ forward_propagation_fn(const Configuration &nn, const Configuration &goal){
         //expand tree from nn -> goal using our transition functon
         //TODO: implement real version, not naive linear progress
         int wpctr = -1;
-
         std::vector<ConfigurationWaypoint> waypoints;
 
         ConfigurationWaypoint initial;
-        initial.first = one_step_forward_propagation(nn,goal);
+        one_step_forward_propagation(nn,goal,initial.first);
         initial.second = wpctr++;
         waypoints.push_back(initial);
-
         if(DEBUG) std::cout << "NN" << nn <<std::endl;
 
         int N = 5;
         for(int i = 1;i<N;i++){
                 ConfigurationWaypoint from = waypoints[i-1];
                 ConfigurationWaypoint qnwp;
-                qnwp.first = one_step_forward_propagation(from.first,goal);
+                bool success = one_step_forward_propagation(from.first,goal,qnwp.first);
+                if(!success){ break; }
                 if(DEBUG) std::cout << "[" << wpctr << "]" << qnwp.first <<std::endl;
                 qnwp.second = wpctr++;
                 waypoints.push_back(qnwp);
