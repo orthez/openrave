@@ -754,6 +754,24 @@ public:
         return KinBodyPtr();
     }
 
+    virtual void SetForces(std::vector<std::vector<double> >& forces, uint64_t timeout=0){
+        //NOT THREAD-SAFE (TODO)
+        _vecforces = forces;
+    }
+    virtual std::vector<std::vector<double> > GetForces(){
+        //NOT THREAD-SAFE (TODO)
+        return _vecforces;
+    }
+
+    virtual std::vector<double> GetForceXYZ(double x, double y, double z){
+            //search through cells if x,y,z is inside
+            std::vector<double> vecforcexyz;
+            vecforcexyz.push_back(0);
+            vecforcexyz.push_back(0);
+            vecforcexyz.push_back(0);
+            return vecforcexyz;
+    }
+
     virtual RobotBasePtr GetRobot(const std::string& pname) const
     {
         boost::timed_mutex::scoped_lock lock(_mutexInterfaces);
@@ -2473,6 +2491,7 @@ protected:
         return false;
     }
 
+    std::vector<std::vector<double> > _vecforces;      ///< forces 
     std::vector<RobotBasePtr> _vecrobots;      ///< robots (possibly controlled)
     std::vector<KinBodyPtr> _vecbodies;     ///< all objects that are collidable (includes robots)
 
