@@ -758,18 +758,62 @@ public:
         //NOT THREAD-SAFE (TODO)
         _vecforces = forces;
     }
-    virtual std::vector<std::vector<double> > GetForces(){
+    virtual std::vector<std::vector<double> > GetForces() const{
         //NOT THREAD-SAFE (TODO)
         return _vecforces;
     }
 
-    virtual std::vector<double> GetForceXYZ(double x, double y, double z){
-            //search through cells if x,y,z is inside
-            std::vector<double> vecforcexyz;
-            vecforcexyz.push_back(0);
-            vecforcexyz.push_back(0);
-            vecforcexyz.push_back(0);
-            return vecforcexyz;
+    virtual std::vector<double> GetForceXYZ(double x, double y, double z) const{
+
+        //#####################################################################
+        //search for covering which contains x,y,z
+        //#####################################################################
+
+        std::vector<double> vfxyz;
+        vfxyz.push_back(0.0);
+        vfxyz.push_back(0.0);
+        vfxyz.push_back(0.0);
+
+
+        KinBodyPtr cover;
+        KinBodyPtr robot;
+        //take the first non-robot kinbody and assume that it contains all
+        //coverings
+        for(int i = 0;i<_vecbodies.size();i++){
+                if( !(_vecbodies.at(i))->IsRobot() ) {
+                        cover = _vecbodies.at(i);
+                        break;
+                }
+        }
+        for(int i = 0;i<_vecbodies.size();i++){
+                if( (_vecbodies.at(i))->IsRobot() ) {
+                        robot = _vecbodies.at(i);
+                        break;
+                }
+        }
+
+        std::vector<KinBody::LinkPtr> veclinks = cover->GetLinks();
+
+        // iterate over force vector (use first N coverings of env)
+        //CollisionCheckerBasePtr _pCurrentChecker;
+
+        int N = _vecforces.size();
+        for(int i = 0;i<N;i++){
+                bool collision=_pCurrentChecker->CheckCollision(veclinks.at(i), robot);
+                if(collision){
+                        std::cout << robot->GetName() << std::endl;
+                        std::cout << "colliding with: " << veclinks.at(i)->GetName() << std::endl;
+                        vfxyz.at(0) += _vecforces.at(i).at(0);
+                        vfxyz.at(1) += _vecforces.at(i).at(1);
+                        vfxyz.at(2) += _vecforces.at(i).at(2);
+                        std::cout << "[" << x << "," << y << "," << z << "]: ";
+                        std::cout << "[" << vfxyz.at(0) << "," << vfxyz.at(1) << "," << vfxyz.at(2) << "]: ";
+                        std::cout << std::endl;
+                }
+        }
+
+
+        return vfxyz;
     }
 
     virtual RobotBasePtr GetRobot(const std::string& pname) const

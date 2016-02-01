@@ -16,11 +16,14 @@
 
 using namespace simple_rrt_planner;
 
+const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
+const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
 struct Configuration{
         double x;
         double y;
+        double z;
         double t;
-        Configuration(double xs,double ys,double ts){x=xs;y=ys;t=ts;};
+        Configuration(double xs,double ys,double ts){x=xs;y=ys;z=Z_DEFAULT;t=ts;};
         Configuration(){x=-1;y=-1;t=0.0;};
         double dist(const Configuration &qq) const{
                 double dx = (x-qq.x)*(x-qq.x);
@@ -29,7 +32,6 @@ struct Configuration{
                 return sqrtf(dx+dy);
         }
         bool IsInCollision(){
-                //std::cout << env->GetId() << std::endl;
                 std::vector<double> dd = this->toDouble();
                 EnvironmentMutex::scoped_lock lock(Configuration::env->GetMutex());
 
@@ -42,6 +44,7 @@ struct Configuration{
                 std::vector<double> qd;
                 qd.push_back(x);
                 qd.push_back(y);
+                qd.push_back(z);
                 return qd;
         }
         static PlannerBase::PlannerParametersPtr params;
@@ -59,7 +62,7 @@ long int Configuration::samples = 0;
 long int Configuration::samples_rejected = 0;
 
 inline std::ostream& operator<< (std::ostream& stream, const Configuration& q) {
-        std::cout << "(" << q.x << "," << q.y << "," << q.t << ")" << std::endl;
+        std::cout << "(" << q.x << "," << q.y << "," << q.z << "," << q.t << ")" << std::endl;
         return stream;
 }
 
@@ -72,9 +75,9 @@ std::vector<dReal> toDouble(const ConfigurationPath &tau){
         ConfigurationPath::const_iterator it;
         std::vector<dReal> all;
         FOREACH(it,tau){
-                //std::cout<< it->x << "|" << it->y << std::endl;
                 all.push_back(it->x);
                 all.push_back(it->y);
+                all.push_back(it->z);
         }
         return all;
 }
@@ -85,10 +88,11 @@ void dump_results(const ResultsPair &res){
         std::cout << "---------------------------------------------------" << std::endl;
         std::cout << "Generated trajectory" << std::endl;
         std::cout << "---------------------------------------------------" << std::endl;
-        int ctr=0;
-        for ( ConfigurationPath::const_iterator it = tau.begin(); it != tau.end(); it++) {
-                cout << "[" << ctr++ << "]: " << (*it) << std::endl;
-        }
+        std::cout << "[begin] : " << tau.front() << std::endl;
+        std::cout << "[end]   : " << tau.back() << std::endl;
+        //for ( ConfigurationPath::const_iterator it = tau.begin(); it != tau.end(); it++) {
+                //cout << "[" << ctr++ << "]: " << (*it) << std::endl;
+        //}
         std::cout << "---------------------------------------------------" << std::endl;
         std::cout << "Waypoints: " << tau.size() << std::endl;
         std::cout << "---------------------------------------------------" << std::endl;
@@ -139,11 +143,14 @@ Configuration state_sampling_fn(void){
         const double x_max = 7.0;
         const double y_min = -5.0;
         const double y_max = 4.0;
+        const double z_min = Z_DEFAULT;
+        const double z_max = Z_DEFAULT;
         const double t_min = 0.0;
         const double t_max = 2*M_PI;
 
         double rx = rand_interval(x_min,x_max);
         double ry = rand_interval(y_min,y_max);
+        double rz = rand_interval(z_min,z_max);
         double rt = rand_interval(t_min,t_max);
         Configuration q = Configuration(rx,ry,rt);
 
@@ -152,6 +159,7 @@ Configuration state_sampling_fn(void){
                 Configuration::samples_rejected++;
                 rx = rand_interval(x_min,x_max);
                 ry = rand_interval(y_min,y_max);
+                rz = rand_interval(z_min,z_max);
                 rt = rand_interval(t_min,t_max);
                 q = Configuration(rx,ry,rt);
                 Configuration::samples++;
@@ -170,6 +178,7 @@ Configuration state_sampling_fn(void){
 typedef std::pair<Configuration, int64_t> ConfigurationWaypoint;
 
 bool one_step_forward_propagation(const Configuration &from, const Configuration &to, Configuration &next){
+
         double lambda = 0.01;
         double dx = lambda*(to.x - from.x);
         double dy = lambda*(to.y - from.y);
@@ -179,6 +188,12 @@ bool one_step_forward_propagation(const Configuration &from, const Configuration
         if( !success ){
             return false;
         }
+        std::vector<double> dd = next.toDouble();
+        dd[2] = Z_INSIDE_FLOOR;
+        Configuration::robot->SetDOFValues(dd);
+        std::vector<double> force = Configuration::env->GetForceXYZ( next.x, next.y, next.z );
+        dd[2] = Z_DEFAULT;
+        Configuration::robot->SetDOFValues(dd);
         return true;
 }
 
@@ -214,16 +229,14 @@ forward_propagation_fn(const Configuration &nn, const Configuration &goal){
 
 const std::chrono::duration<double> time_limit(10.0);
 
-
-
 //##############################################################################
 // (2) nearest_neighbor_fn - given all nodes explored so far, and a 
 //      new state, return the index of the "closest" node
 //##############################################################################
 int64_t
 nearest_neighbor_fn
-(const std::vector<SimpleRRTPlannerState<Configuration>> &nodes, const Configuration &q){
-
+(const std::vector<SimpleRRTPlannerState<Configuration>> &nodes, const Configuration &q)
+{
         std::vector<SimpleRRTPlannerState<Configuration>>::const_iterator it;
 
         double min_dist = std::numeric_limits<double>::infinity();
