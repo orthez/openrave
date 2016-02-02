@@ -5,15 +5,20 @@
 #include <openrave/plannerparameters.h>
 #include <openrave/planner.h>
 #include <arc_utilities/simple_rrt_planner_vanilla.hpp>
+//#include <arc_utilities/simple_rrt_planner_interface_vanilla.hpp>
 #include "rplanners.h"
 #include "rrt.h"
 
 #define DEBUG 0
 using namespace simple_rrt_planner;
 const double dtime = 0.02;
+const int N_FORWARD_STEPS = 10;
+
 const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
 const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
-const std::chrono::duration<double> time_limit(80000.0);
+const double MAX_VELOCITY = 5.0;
+const double MAX_ACCELERATION = 2.0;
+const std::chrono::duration<double> time_limit(2000.0);
 const double epsilon = 0.2; //epsilon region around goal
 
 //##############################################################################
@@ -182,23 +187,33 @@ double rand_interval( double a, double b){
 }
 Configuration state_sampling_fn(void){
 
-        const double x_min = -5.0;
-        const double x_max = 7.0;
-        const double y_min = -3.0;
-        const double y_max = 3.0;
-        const double z_min = Z_DEFAULT;
-        const double z_max = Z_DEFAULT;
-        const double t_min = 0;
-        const double t_max = 2*M_PI;
+        std::vector<dReal> qlim_l;
+        std::vector<dReal> qlim_u;
+        std::vector<dReal> dqlim;
 
-        const double dx_min = -1.0;
-        const double dx_max = 1.0;
-        const double dy_min = -1.0;
-        const double dy_max = 1.0;
+        Configuration::robot->GetActiveDOFLimits(qlim_l,qlim_u);
+        Configuration::robot->GetActiveDOFVelocityLimits(dqlim);
+
+        const double x_min = qlim_l.at(0);
+        const double x_max = qlim_u.at(0);
+
+        const double y_min = qlim_l.at(1);
+        const double y_max = qlim_u.at(1);
+
+        const double z_min = qlim_l.at(2);
+        const double z_max = qlim_u.at(2);
+
+        const double t_min = qlim_l.at(3);
+        const double t_max = qlim_u.at(3);
+
+        const double dx_min = 0.0;
+        const double dx_max = MAX_VELOCITY;
+        const double dy_min = 0.0;
+        const double dy_max = MAX_VELOCITY;
         const double dz_min = 0.0;
         const double dz_max = 0.0;
-        const double dt_min = -1.0;
-        const double dt_max = 1.0;
+        const double dt_min = -MAX_VELOCITY;
+        const double dt_max = MAX_VELOCITY;
 
         double rx = rand_interval(x_min,x_max);
         double ry = rand_interval(y_min,y_max);
@@ -253,12 +268,12 @@ bool one_step_forward_propagation(const Configuration &from, const Configuration
         //#####################################################################
         // GET RANDOM CONTROLS
         //#####################################################################
-        const double a_lin_min = -0.5;
-        const double a_lin_max = 0.5;
-        const double a_ang_min = -0.5;
-        const double a_ang_max = 0.5;
-        const double a_lie_min = -0.5;
-        const double a_lie_max = 0.5;
+        const double a_lin_min = -MAX_ACCELERATION;
+        const double a_lin_max = MAX_ACCELERATION;
+        const double a_ang_min = -MAX_ACCELERATION;
+        const double a_ang_max = MAX_ACCELERATION;
+        const double a_lie_min = -MAX_ACCELERATION;
+        const double a_lie_max = MAX_ACCELERATION;
 
         double a1 = rand_interval(a_lin_min,a_lin_max);
         double a2 = rand_interval(a_ang_min,a_ang_max);
@@ -279,11 +294,11 @@ bool one_step_forward_propagation(const Configuration &from, const Configuration
         X2.push_back(0.0);
         X2.push_back(1.0);
 
-        std::vector<double> X3; //LIE BRACKET [X1,X2]
-        X3.push_back(sin(from.t));
-        X3.push_back(-cos(from.t));
-        X3.push_back(0.0);
-        X3.push_back(0.0);
+        //std::vector<double> X3; //LIE BRACKET [X1,X2]
+        //X3.push_back(sin(from.t));
+        //X3.push_back(-cos(from.t));
+        //X3.push_back(0.0);
+        //X3.push_back(0.0);
 
         std::vector<double> X4; //FORCE FIELD
         X4.push_back(force.at(0));
@@ -292,10 +307,10 @@ bool one_step_forward_propagation(const Configuration &from, const Configuration
         X4.push_back(0.0);
         //#####################################################################
 
-        double ddx = a1*X1.at(0) + a2*X2.at(0) + a3*X3.at(0) + X4.at(0);
-        double ddy = a1*X1.at(1) + a2*X2.at(1) + a3*X3.at(1) + X4.at(1);
-        double ddz = a1*X1.at(2) + a2*X2.at(2) + a3*X3.at(2) + X4.at(2);
-        double ddt = a1*X1.at(3) + a2*X2.at(3) + a3*X3.at(3) + X4.at(3);
+        double ddx = a1*X1.at(0) + a2*X2.at(0) + X4.at(0);// + a3*X3.at(0);
+        double ddy = a1*X1.at(1) + a2*X2.at(1) + X4.at(1);// + a3*X3.at(1);
+        double ddz = a1*X1.at(2) + a2*X2.at(2) + X4.at(2);// + a3*X3.at(2);
+        double ddt = a1*X1.at(3) + a2*X2.at(3) + X4.at(3);// + a3*X3.at(3);
 
         // x = ddx * dt^2/2 + dx * dt
 
@@ -322,13 +337,18 @@ bool one_step_forward_propagation(const Configuration &from, const Configuration
             return false;
         }
 
-        float fwidth = 2.0f;
-        RaveVector<float> vcolor(0.5,0.0,1.0,1);
+        float fwidth = 2.5f;
+        double velocity = sqrtf(dxn*dxn + dyn*dyn + dzn*dzn);
+        double color_scale = velocity/MAX_VELOCITY;
+
+        RaveVector<float> redish(0.3,0.0,0.4,1);
+        RaveVector<float> blue(0.0,0.0,1.0,1);
+
+        RaveVector<float> vcolor = color_scale*redish + (1.0-color_scale)*blue;
 
         vector<RaveVector<float> > vpts;
-        RaveVector<float> rf(from.x,from.y,from.z);
-        RaveVector<float> nf(next.x,next.y,next.z);
-
+        RaveVector<float> rf(from.x,from.y,from.z+0.05);
+        RaveVector<float> nf(next.x,next.y,next.z+0.05);
         vpts.push_back(rf);
         vpts.push_back(nf);
         //Configuration::handle.push_back(Configuration::env->drawlinestrip(points, numpts, stride, fwidth, &vcolor[0]));
@@ -353,8 +373,7 @@ forward_propagation_fn(const Configuration &nn, const Configuration &goal){
         initial.second = wpctr++;
         waypoints.push_back(initial);
 
-        int N = 10;
-        for(int i = 1;i<N;i++){
+        for(int i = 1;i<N_FORWARD_STEPS;i++){
                 ConfigurationWaypoint from = waypoints[i-1];
                 ConfigurationWaypoint qnwp;
                 bool success = one_step_forward_propagation(from.first,goal,qnwp.first);
