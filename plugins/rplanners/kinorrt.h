@@ -41,11 +41,19 @@ public:
         std::vector<double> init = _parameters->vinitialconfig;
         std::vector<double> goal = _parameters->vgoalconfig;
 
-        Configuration start_config(init.at(0),init.at(1),0.0);
-        Configuration goal_config(goal.at(0),goal.at(1),0.0);
+        std::vector<double> init_cspace;
+        std::vector<double> goal_cspace;
 
-        std::cout << start_config << std::endl;
-        std::cout << goal_config << std::endl;
+        for(int i=0;i<4;i++){
+                init_cspace.push_back(init.at(i));
+                goal_cspace.push_back(goal.at(i));
+        }
+
+        Configuration start_config(init.at(0),init.at(1),init.at(2),init.at(3),init.at(4),init.at(5),init.at(6),init.at(7));
+        Configuration goal_config(goal.at(0),goal.at(1),goal.at(2),goal.at(3),goal.at(4),goal.at(5),goal.at(6),goal.at(7));
+
+        std::cout << "Start : " << start_config << std::endl;
+        std::cout << "Goal  : " << goal_config << std::endl;
         std::cout << _robot->GetName() << std::endl;
 
         //#####################################################################
@@ -74,10 +82,10 @@ public:
             //boost::shared_ptr<DynamicsCollisionConstraint> pcollision(new DynamicsCollisionConstraint(params, listCheckCollisions, 0xffffffff&~CFO_CheckTimeBasedConstraints));
             //params->_checkpathvelocityconstraintsfn = boost::bind(&DynamicsCollisionConstraint::Check,pcollision,_1, _2, _3, _4, _5, _6, _7, _8);
 
-        if( !_parameters->_checkpathconstraintsfn(_parameters->vinitialconfig,_parameters->vinitialconfig,IT_OpenStart,ConfigurationListPtr()) ) {
-            RAVELOG_WARN("Error: Initial configuration not in free space\n");
-            return PS_Failed;
-        }
+        //if( !_parameters->_checkpathconstraintsfn(init_cspace,init_cspace,IT_OpenStart,ConfigurationListPtr()) ) {
+        //    RAVELOG_WARN("Error: Initial configuration not in free space\n");
+        //    return PS_Failed;
+        //}
         if( start_config.IsInCollision() ){
             RAVELOG_WARN("initial state rejected by constraint fn\n");
             return PS_Failed;
@@ -91,7 +99,6 @@ public:
         std::cout << "PARAMETERS" << std::endl;
         std::cout << "############################################" << std::endl;
         std::cout << "configs   : " << _parameters->_configurationspecification << std::endl;
-        std::cout << "vinit     : " << init[0] << "|" << init[1] << std::endl;
         
             //- joint_values
             //- joint_velocities
@@ -151,8 +158,8 @@ public:
                 std::cout << init.at(i) << "|";
         }
 
-
-        return _ProcessPostPlanners(_robot,ptraj);
+        //return _ProcessPostPlanners(_robot,ptraj);
+        return PS_HasSolution;
     }
     virtual PlannerParametersConstPtr GetParameters() const {
         return _parameters;

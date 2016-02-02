@@ -801,14 +801,14 @@ public:
         for(int i = 0;i<N;i++){
                 bool collision=_pCurrentChecker->CheckCollision(veclinks.at(i), robot);
                 if(collision){
-                        std::cout << robot->GetName() << std::endl;
-                        std::cout << "colliding with: " << veclinks.at(i)->GetName() << std::endl;
+                        //std::cout << robot->GetName() << std::endl;
+                        //std::cout << "colliding with: " << veclinks.at(i)->GetName() << std::endl;
                         vfxyz.at(0) += _vecforces.at(i).at(0);
                         vfxyz.at(1) += _vecforces.at(i).at(1);
                         vfxyz.at(2) += _vecforces.at(i).at(2);
-                        std::cout << "[" << x << "," << y << "," << z << "]: ";
-                        std::cout << "[" << vfxyz.at(0) << "," << vfxyz.at(1) << "," << vfxyz.at(2) << "]: ";
-                        std::cout << std::endl;
+                        //std::cout << "[" << x << "," << y << "," << z << "]: ";
+                        //std::cout << "[" << vfxyz.at(0) << "," << vfxyz.at(1) << "," << vfxyz.at(2) << "]: ";
+                        //std::cout << std::endl;
                 }
         }
 

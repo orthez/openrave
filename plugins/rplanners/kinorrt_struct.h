@@ -9,27 +9,61 @@
 #include "rrt.h"
 
 #define DEBUG 0
+using namespace simple_rrt_planner;
+const double dtime = 0.02;
+const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
+const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
+const std::chrono::duration<double> time_limit(80000.0);
+const double epsilon = 0.2; //epsilon region around goal
 
 //##############################################################################
 //build up the simple_rrt structures
 //##############################################################################
 
-using namespace simple_rrt_planner;
 
-const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
-const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
+template<class T>
+std::ostream& operator << (std::ostream& os, const std::vector<T>& v) 
+{
+    os << "[";
+    for (typename std::vector<T>::const_iterator ii = v.begin(); ii != v.end(); ++ii)
+    {
+        os << " " << *ii;
+    }
+    os << "]";
+    return os;
+}
+
 struct Configuration{
         double x;
         double y;
         double z;
         double t;
-        Configuration(double xs,double ys,double ts){x=xs;y=ys;z=Z_DEFAULT;t=ts;};
-        Configuration(){x=-1;y=-1;t=0.0;};
+        double dx;
+        double dy;
+        double dz;
+        double dt;
+        //Configuration(double xs,double ys,double ts){x=xs;y=ys;z=Z_DEFAULT;t=ts;};
+        Configuration(  double xs,double ys,double zs,double ts,
+                        double dxs,double dys,double dzs,double dts)
+        {
+                x=xs;y=ys;z=zs;t=ts;
+                dx=dxs;dy=dys;dz=dzs;dt=dts;
+        };
+
+        Configuration(){x=0.0;y=0.0;z=0.0;t=0.0;dx=0.0;dy=0.0;dz=0.0;dt=0.0;};
+
         double dist(const Configuration &qq) const{
                 double dx = (x-qq.x)*(x-qq.x);
                 double dy = (y-qq.y)*(y-qq.y);
-                //double dt = (t-qq.t)*(t-qq.t);
-                return sqrtf(dx+dy);
+                double dz = (z-qq.z)*(z-qq.z);
+                double dt = min(fabs(t-qq.t),2*M_PI-fabs(t-qq.t));
+
+                double ddx = (dx-qq.dx)*(dx-qq.dx);
+                double ddy = (dy-qq.dy)*(dy-qq.dy);
+                double ddz = (dz-qq.dz)*(dz-qq.dz);
+                double ddt = min(fabs(dt-qq.dt),2*M_PI-fabs(dt-qq.dt));
+
+                return sqrtf(dx+dy+dz)+dt + sqrtf(ddx+ddy+ddz) + ddt;
         }
         bool IsInCollision(){
                 std::vector<double> dd = this->toDouble();
@@ -45,6 +79,7 @@ struct Configuration{
                 qd.push_back(x);
                 qd.push_back(y);
                 qd.push_back(z);
+                qd.push_back(t);
                 return qd;
         }
         static PlannerBase::PlannerParametersPtr params;
@@ -61,10 +96,12 @@ std::vector<OpenRAVE::GraphHandlePtr> Configuration::handle;
 long int Configuration::samples = 0;
 long int Configuration::samples_rejected = 0;
 
-inline std::ostream& operator<< (std::ostream& stream, const Configuration& q) {
-        std::cout << "(" << q.x << "," << q.y << "," << q.z << "," << q.t << ")" << std::endl;
-        return stream;
+inline std::ostream& operator<< (std::ostream& os, const Configuration& q) 
+{
+        os << "(" << q.x << "," << q.y << "," << q.z << "," << q.t << ")";
+        return os;
 }
+
 
 typedef std::vector<Configuration> ConfigurationPath;
 typedef std::map<std::string,double> Statistics;
@@ -78,6 +115,7 @@ std::vector<dReal> toDouble(const ConfigurationPath &tau){
                 all.push_back(it->x);
                 all.push_back(it->y);
                 all.push_back(it->z);
+                all.push_back(it->t);
         }
         return all;
 }
@@ -119,8 +157,13 @@ void dump_results(const ResultsPair &res){
 //##############################################################################
 
 bool goal_reached_fn( const Configuration &q, const Configuration &goal ){
-        double epsilon = 0.1;
-        return (q.dist(goal) < epsilon);
+        double dx = (q.x - goal.x)*(q.x - goal.x);
+        double dy = (q.y - goal.y)*(q.y - goal.y);
+        bool reached = (sqrtf(dx+dy) < epsilon);
+        if(reached){
+                std::cout << "goal reached" << std::endl;
+        }
+        return reached;
 }
 
 //##############################################################################
@@ -141,18 +184,33 @@ Configuration state_sampling_fn(void){
 
         const double x_min = -5.0;
         const double x_max = 7.0;
-        const double y_min = -5.0;
-        const double y_max = 4.0;
+        const double y_min = -3.0;
+        const double y_max = 3.0;
         const double z_min = Z_DEFAULT;
         const double z_max = Z_DEFAULT;
-        const double t_min = 0.0;
+        const double t_min = 0;
         const double t_max = 2*M_PI;
+
+        const double dx_min = -1.0;
+        const double dx_max = 1.0;
+        const double dy_min = -1.0;
+        const double dy_max = 1.0;
+        const double dz_min = 0.0;
+        const double dz_max = 0.0;
+        const double dt_min = -1.0;
+        const double dt_max = 1.0;
 
         double rx = rand_interval(x_min,x_max);
         double ry = rand_interval(y_min,y_max);
         double rz = rand_interval(z_min,z_max);
         double rt = rand_interval(t_min,t_max);
-        Configuration q = Configuration(rx,ry,rt);
+
+        double rdx = rand_interval(dx_min,dx_max);
+        double rdy = rand_interval(dy_min,dy_max);
+        double rdz = rand_interval(dz_min,dz_max);
+        double rdt = rand_interval(dt_min,dt_max);
+
+        Configuration q = Configuration(rx,ry,rz,rt,rdx,rdy,rdz,rdt);
 
         Configuration::samples++;
         while(q.IsInCollision()){
@@ -161,7 +219,11 @@ Configuration state_sampling_fn(void){
                 ry = rand_interval(y_min,y_max);
                 rz = rand_interval(z_min,z_max);
                 rt = rand_interval(t_min,t_max);
-                q = Configuration(rx,ry,rt);
+                rdx = rand_interval(dx_min,dx_max);
+                rdy = rand_interval(dy_min,dy_max);
+                rdz = rand_interval(dz_min,dz_max);
+                rdt = rand_interval(dt_min,dt_max);
+                q = Configuration(rx,ry,rz,rt,rdx,rdy,rdz,rdt);
                 Configuration::samples++;
         }
         
@@ -179,21 +241,101 @@ typedef std::pair<Configuration, int64_t> ConfigurationWaypoint;
 
 bool one_step_forward_propagation(const Configuration &from, const Configuration &to, Configuration &next){
 
-        double lambda = 0.01;
-        double dx = lambda*(to.x - from.x);
-        double dy = lambda*(to.y - from.y);
-        double dt = lambda*(to.t - from.t);
-        next = Configuration(from.x+dx,from.y+dy,from.t+dt);
-        bool success = Configuration::params->_checkpathconstraintsfn(from.toDouble(), next.toDouble(), IT_OpenStart,PlannerBase::ConfigurationListPtr());
-        if( !success ){
-            return false;
-        }
-        std::vector<double> dd = next.toDouble();
+        //#####################################################################
+        //GET FORCES from cell in which robot currently resides
+        //#####################################################################
+        std::vector<double> dd = from.toDouble();
         dd[2] = Z_INSIDE_FLOOR;
         Configuration::robot->SetDOFValues(dd);
-        std::vector<double> force = Configuration::env->GetForceXYZ( next.x, next.y, next.z );
+        std::vector<double> force = Configuration::env->GetForceXYZ( from.x, from.y, from.z );
         dd[2] = Z_DEFAULT;
         Configuration::robot->SetDOFValues(dd);
+        //#####################################################################
+        // GET RANDOM CONTROLS
+        //#####################################################################
+        const double a_lin_min = -0.5;
+        const double a_lin_max = 0.5;
+        const double a_ang_min = -0.5;
+        const double a_ang_max = 0.5;
+        const double a_lie_min = -0.5;
+        const double a_lie_max = 0.5;
+
+        double a1 = rand_interval(a_lin_min,a_lin_max);
+        double a2 = rand_interval(a_ang_min,a_ang_max);
+        double a3 = rand_interval(a_lie_min,a_lie_max);
+
+        //#####################################################################
+        // CREATE FORCE FIELDS x_{k+1} = f(x_k,u_k)
+        //#####################################################################
+        std::vector<double> X1; //LINEAR VEL FIELD
+        X1.push_back(cos(from.t));
+        X1.push_back(sin(from.t));
+        X1.push_back(0.0);
+        X1.push_back(0.0);
+
+        std::vector<double> X2; //ANGULAR VEL FIELD
+        X2.push_back(0.0);
+        X2.push_back(0.0);
+        X2.push_back(0.0);
+        X2.push_back(1.0);
+
+        std::vector<double> X3; //LIE BRACKET [X1,X2]
+        X3.push_back(sin(from.t));
+        X3.push_back(-cos(from.t));
+        X3.push_back(0.0);
+        X3.push_back(0.0);
+
+        std::vector<double> X4; //FORCE FIELD
+        X4.push_back(force.at(0));
+        X4.push_back(force.at(1));
+        X4.push_back(force.at(2));
+        X4.push_back(0.0);
+        //#####################################################################
+
+        double ddx = a1*X1.at(0) + a2*X2.at(0) + a3*X3.at(0) + X4.at(0);
+        double ddy = a1*X1.at(1) + a2*X2.at(1) + a3*X3.at(1) + X4.at(1);
+        double ddz = a1*X1.at(2) + a2*X2.at(2) + a3*X3.at(2) + X4.at(2);
+        double ddt = a1*X1.at(3) + a2*X2.at(3) + a3*X3.at(3) + X4.at(3);
+
+        // x = ddx * dt^2/2 + dx * dt
+
+        double dx = from.dx;
+        double dy = from.dy;
+        double dz = from.dz;
+        double dt = from.dt;
+
+        double dxn = ddx*dtime + dx;
+        double dyn = ddy*dtime + dy;
+        double dzn = ddz*dtime + dz;
+        double dtn = ddt*dtime + dt;
+
+        double xn = ddx*dtime*dtime/2 + dx*dtime + from.x;
+        double yn = ddy*dtime*dtime/2 + dy*dtime + from.y;
+        double zn = ddz*dtime*dtime/2 + dz*dtime + from.z;
+        double tn = ddt*dtime*dtime/2 + dt*dtime + from.t;
+
+        next = Configuration(xn,yn,zn,tn,dxn,dyn,dzn,dtn);
+
+        //std::cout << "expanding: " << from.x << "->" << xn << std::endl;
+        //bool success = Configuration::params->_checkpathconstraintsfn(from.toDouble(), next.toDouble(), IT_OpenStart,PlannerBase::ConfigurationListPtr());
+        if( next.IsInCollision() ){
+            return false;
+        }
+
+        float fwidth = 2.0f;
+        RaveVector<float> vcolor(0.5,0.0,1.0,1);
+
+        vector<RaveVector<float> > vpts;
+        RaveVector<float> rf(from.x,from.y,from.z);
+        RaveVector<float> nf(next.x,next.y,next.z);
+
+        vpts.push_back(rf);
+        vpts.push_back(nf);
+        //Configuration::handle.push_back(Configuration::env->drawlinestrip(points, numpts, stride, fwidth, &vcolor[0]));
+        Configuration::handle.push_back(
+                        Configuration::env->drawlinestrip(&vpts[0].x, vpts.size(), sizeof(vpts[0]), fwidth, &vcolor[0])
+                        );
+
         return true;
 }
 
@@ -202,15 +344,16 @@ forward_propagation_fn(const Configuration &nn, const Configuration &goal){
         //expand tree from nn -> goal using our transition functon
         //TODO: implement real version, not naive linear progress
         int wpctr = -1;
+
         std::vector<ConfigurationWaypoint> waypoints;
 
         ConfigurationWaypoint initial;
-        one_step_forward_propagation(nn,goal,initial.first);
+        bool success = one_step_forward_propagation(nn,goal,initial.first);
+        if(!success){ return waypoints; }
         initial.second = wpctr++;
         waypoints.push_back(initial);
-        if(DEBUG) std::cout << "NN" << nn <<std::endl;
 
-        int N = 5;
+        int N = 10;
         for(int i = 1;i<N;i++){
                 ConfigurationWaypoint from = waypoints[i-1];
                 ConfigurationWaypoint qnwp;
@@ -223,11 +366,6 @@ forward_propagation_fn(const Configuration &nn, const Configuration &goal){
         return waypoints;
 }
 
-//##############################################################################
-// (6) time_limit - limit, in seconds, for the runtime of the planner
-//##############################################################################
-
-const std::chrono::duration<double> time_limit(10.0);
 
 //##############################################################################
 // (2) nearest_neighbor_fn - given all nodes explored so far, and a 
