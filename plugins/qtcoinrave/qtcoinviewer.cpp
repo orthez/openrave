@@ -1783,6 +1783,7 @@ void* QtCoinViewer::_drawarrow(SoSwitch* handle, const RaveVector<float>& p1, co
     if( handle == NULL ) {
         return handle;
     }
+    std::cout << color[3] << std::endl;
     SoSeparator* pparent = new SoSeparator(); handle->addChild(pparent);
     pparent->addChild(new SoTransform());
     SoSeparator* psep = new SoSeparator();
@@ -1805,6 +1806,14 @@ void* QtCoinViewer::_drawarrow(SoSwitch* handle, const RaveVector<float>& p1, co
         return handle;
     }
 
+    //compute color material
+    SoMaterial* mtrl = new SoMaterial;
+    mtrl->diffuseColor = SbColor(color[0],color[1],color[2]);
+    mtrl->ambientColor = SbColor(color[0],color[1],color[2]);
+    mtrl->transparency = (1.0-color[3]);
+    mtrl->setOverride(true);
+    pparent->addChild(mtrl);
+
     //rotate to face point
     RaveVector<float> qrot = quatRotateDirection(RaveVector<dReal>(0,1,0),RaveVector<dReal>(direction));
     RaveVector<float> vaxis = axisAngleFromQuat(qrot);
@@ -1824,20 +1833,16 @@ void* QtCoinViewer::_drawarrow(SoSwitch* handle, const RaveVector<float>& p1, co
     psep->addChild(ptrans);
     pparent->addChild(psep);
 
-    // set a diffuse color
-    _SetMaterial(pparent, color);
-
     SoCylinder* c = new SoCylinder();
     c->radius = fwidth;
     c->height = fheight-coneheight;
     psep->addChild(c);
-
+    
     //place a cone for the arrow tip
 
     SoCone* cn = new SoCone();
     cn->bottomRadius = fwidth;
     cn->height = coneheight;
-
     ptrans = new SoTransform();
     ptrans->rotation.setValue(SbVec3f(vaxis.x, vaxis.y, vaxis.z), angle);
     linetranslation = p2 - coneheight/2.0f*direction;

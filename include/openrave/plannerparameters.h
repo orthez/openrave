@@ -893,6 +893,8 @@ protected:
     }
 };
 typedef boost::shared_ptr<KinodynamicRRTParameters> KinodynamicRRTParametersPtr;
+typedef KinodynamicRRTParameters GeoRRTParameters;
+typedef boost::shared_ptr<KinodynamicRRTParameters> GeoRRTParametersPtr;
 
 } // OpenRAVE
 

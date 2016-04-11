@@ -1,24 +1,25 @@
 #pragma once
 
 #include <boost/algorithm/string.hpp>
-#include "kinorrt_struct.h"
+#include "georrt_struct.h"
 
-class KinodynamicRRTPlanner : public RrtPlanner<SimpleNode>
+class GeoRRTPlanner : public RrtPlanner<SimpleNode>
 {
 public:
-    KinodynamicRRTPlanner(EnvironmentBasePtr penv) : RrtPlanner<SimpleNode>(penv)
+    GeoRRTPlanner(EnvironmentBasePtr penv) : RrtPlanner<SimpleNode>(penv)
     {
-        __description += "Kinodynamic RRT";
+        __description += "geometrical RRT";
     }
-    virtual ~KinodynamicRRTPlanner() {
+    virtual ~GeoRRTPlanner() {
     }
 
     virtual bool InitPlan(RobotBasePtr pbase, PlannerParametersConstPtr pparams)
     {
+        using namespace georrt;
         EnvironmentMutex::scoped_lock lock(GetEnv()->GetMutex());
         _robot = pbase;
 
-        _parameters.reset(new KinodynamicRRTParameters());
+        _parameters.reset(new GeoRRTParameters());
         _parameters->copy(pparams);
         if( !RrtPlanner<SimpleNode>::_InitPlan(pbase,_parameters) ) {
             _parameters.reset();
@@ -30,13 +31,13 @@ public:
 
     virtual PlannerStatus PlanPath(TrajectoryBasePtr ptraj)
     {
-        using namespace kinorrt;
+        using namespace georrt;
         //deterministic results
         srand(0);
 
 
         if(!_parameters) {
-            RAVELOG_ERROR("KinodynamicRRTPlanner::PlanPath - Error, planner not initialized\n");
+            RAVELOG_ERROR("GeoRRTPlanner::PlanPath - Error, planner not initialized\n");
             return PS_Failed;
         }
         std::vector<double> init = _parameters->vinitialconfig;
@@ -159,8 +160,8 @@ public:
                 std::cout << init.at(i) << "|";
         }
 
-        //return _ProcessPostPlanners(_robot,ptraj);
-        return PS_HasSolution;
+        return _ProcessPostPlanners(_robot,ptraj);
+        //return PS_HasSolution;
     }
     virtual PlannerParametersConstPtr GetParameters() const {
         return _parameters;
@@ -168,10 +169,10 @@ public:
 
 
 protected:
-    KinodynamicRRTParametersPtr _parameters;
+    GeoRRTParametersPtr _parameters;
 };
 
 //#ifdef RAVE_REGISTER_BOOST
 //#include BOOST_TYPEOF_INCREMENT_REGISTRATION_GROUP()
-//BOOST_TYPEOF_REGISTER_TYPE(KinodynamicRRTPlanner::GOALPATH)
+//BOOST_TYPEOF_REGISTER_TYPE(GeoRRTPlanner::GOALPATH)
 //#endif

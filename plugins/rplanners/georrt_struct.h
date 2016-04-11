@@ -12,11 +12,11 @@
 #define DEBUG 0
 #define DEBUG_VISUALIZE 0
 
+
 //##############################################################################
 //build up the simple_rrt structures
 //##############################################################################
-
-namespace kinorrt{
+namespace georrt{
         using namespace simple_rrt_planner;
         const double dtime = 0.01;
         const int N_FORWARD_STEPS = 10;
@@ -199,48 +199,27 @@ namespace kinorrt{
                 const double y_max = qlim_u.at(1);
 
                 // TODO: no z axis
-                const double z_min = qlim_u.at(2);
+                const double z_min = qlim_l.at(2);
                 const double z_max = qlim_u.at(2);
 
                 const double t_min = qlim_l.at(3);
                 const double t_max = qlim_u.at(3);
 
-
-                std::vector<dReal> maxvel;
-                Configuration::robot->GetActiveDOFVelocityLimits(maxvel);
-                const double dx_min = 0.0;
-                const double dx_max = maxvel[0];
-                const double dy_min = 0.0;
-                const double dy_max = maxvel[1];
-                const double dz_min = 0.0;
-                const double dz_max = maxvel[2];
-                const double dt_min = -maxvel[3];
-                const double dt_max =  maxvel[3];
-
                 double rx = rand_interval(x_min,x_max);
                 double ry = rand_interval(y_min,y_max);
-                double rz = rand_interval(z_min,z_max);
+                double rz = z_max;
                 double rt = rand_interval(t_min,t_max);
 
-                double rdx = rand_interval(dx_min,dx_max);
-                double rdy = rand_interval(dy_min,dy_max);
-                double rdz = rand_interval(dz_min,dz_max);
-                double rdt = rand_interval(dt_min,dt_max);
-
-                Configuration q = Configuration(rx,ry,rz,rt,rdx,rdy,rdz,rdt);
+                Configuration q = Configuration(rx,ry,rz,rt,0,0,0,0);
 
                 Configuration::samples++;
                 while(q.IsInCollision()){
                         Configuration::samples_rejected++;
                         rx = rand_interval(x_min,x_max);
                         ry = rand_interval(y_min,y_max);
-                        rz = rand_interval(z_min,z_max);
+                        rz = z_max;
                         rt = rand_interval(t_min,t_max);
-                        rdx = rand_interval(dx_min,dx_max);
-                        rdy = rand_interval(dy_min,dy_max);
-                        rdz = rand_interval(dz_min,dz_max);
-                        rdt = rand_interval(dt_min,dt_max);
-                        q = Configuration(rx,ry,rz,rt,rdx,rdy,rdz,rdt);
+                        q = Configuration(rx,ry,rz,rt,0,0,0,0);
                         Configuration::samples++;
                 }
                 
@@ -258,87 +237,31 @@ namespace kinorrt{
 
         bool one_step_forward_propagation(const Configuration &from, const Configuration &to, Configuration &next){
 
-                //#####################################################################
-                //GET FORCES from cell in which robot currently resides
-                //#####################################################################
-                std::vector<double> dd = from.toDouble();
-                dd[2] = Z_INSIDE_FLOOR;
-                Configuration::robot->SetDOFValues(dd);
-                std::vector<double> force = Configuration::env->GetForceXYZ( from.x, from.y, from.z );
-                dd[2] = Z_DEFAULT;
-                Configuration::robot->SetDOFValues(dd);
-                //#####################################################################
-                // GET RANDOM CONTROLS
-                //#####################################################################
+                double xi = from.x;
+                double yi = from.y;
+                double zi = from.z;
+                double ti = from.t;
 
-                std::vector<double> acc_lim;
-                Configuration::robot->GetDOFAccelerationLimits(acc_lim);
+                double xg = to.x;
+                double yg = to.y;
+                double zg = to.z;
+                double tg = to.t;
 
-                const double a_lin_min = -acc_lim[0];
-                const double a_lin_max = acc_lim[0];
-                const double a_lie_min = -acc_lim[1];
-                const double a_lie_max = acc_lim[1];
-                const double a_ang_min = -acc_lim[3];
-                const double a_ang_max = acc_lim[3];
+                double dxn = (xg - xi);
+                double dyn = (yg - yi);
+                double dzn = 0;
+                double dtn = (tg - ti);
 
-                double a1 = rand_interval(a_lin_min,a_lin_max);
-                double a2 = rand_interval(a_ang_min,a_ang_max);
-                double a3 = rand_interval(a_lie_min,a_lie_max);
+                double n = sqrt(dxn*dxn+dyn*dyn);
 
-                //#####################################################################
-                // CREATE FORCE FIELDS x_{k+1} = f(x_k,u_k)
-                //#####################################################################
-                std::vector<double> X1; //LINEAR VEL FIELD
-                X1.push_back(cos(from.t));
-                X1.push_back(sin(from.t));
-                X1.push_back(0.0);
-                X1.push_back(0.0);
+                double eta = 0.1;
+                double xn = xi + eta*dxn;
+                double yn = yi + eta*dyn;
+                double zn = zi;
+                double tn = ti + eta*dtn;
 
-                std::vector<double> X2; //ANGULAR VEL FIELD
-                X2.push_back(0.0);
-                X2.push_back(0.0);
-                X2.push_back(0.0);
-                X2.push_back(1.0);
+                next = Configuration(xn,yn,zn,tn,0,0,0,0);
 
-                std::vector<double> X3; //LIE BRACKET [X1,X2]
-                X3.push_back(-sin(from.t));
-                X3.push_back(cos(from.t));
-                X3.push_back(0.0);
-                X3.push_back(0.0);
-
-                std::vector<double> X4; //FORCE FIELD
-                X4.push_back(force.at(0));
-                X4.push_back(force.at(1));
-                X4.push_back(force.at(2));
-                X4.push_back(0.0);
-                //#####################################################################
-
-                double ddx = a1*X1.at(0) + a2*X2.at(0) + X4.at(0) + a3*X3.at(0);
-                double ddy = a1*X1.at(1) + a2*X2.at(1) + X4.at(1) + a3*X3.at(1);
-                double ddz = a1*X1.at(2) + a2*X2.at(2) + X4.at(2) + a3*X3.at(2);
-                double ddt = a1*X1.at(3) + a2*X2.at(3) + X4.at(3) + a3*X3.at(3);
-
-                // x = ddx * dt^2/2 + dx * dt
-
-                double dx = from.dx;
-                double dy = from.dy;
-                double dz = from.dz;
-                double dt = from.dt;
-
-                double dxn = ddx*dtime + from.dx;
-                double dyn = ddy*dtime + from.dy;
-                double dzn = ddz*dtime + from.dz;
-                double dtn = ddt*dtime + from.dt;
-
-                double xn = ddx*dtime*dtime/2 + dx*dtime + from.x;
-                double yn = ddy*dtime*dtime/2 + dy*dtime + from.y;
-                double zn = ddz*dtime*dtime/2 + dz*dtime + from.z;
-                double tn = ddt*dtime*dtime/2 + dt*dtime + from.t;
-
-                next = Configuration(xn,yn,zn,tn,dxn,dyn,dzn,dtn);
-
-                //std::cout << "expanding: " << from.x << "->" << xn << std::endl;
-                //bool success = Configuration::params->_checkpathconstraintsfn(from.toDouble(), next.toDouble(), IT_OpenStart,PlannerBase::ConfigurationListPtr());
                 if( next.IsInCollision() ){
                     return false;
                 }

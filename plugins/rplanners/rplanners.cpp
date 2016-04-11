@@ -17,6 +17,7 @@
 #include "openraveplugindefs.h"
 #include "rrt.h"
 #include "kinorrt.h"
+#include "georrt.h"
 
 #include <openrave/plugin.h>
 
@@ -56,6 +57,10 @@ InterfaceBasePtr CreateInterfaceValidated(InterfaceType type, const std::string&
         else if( interfacename == "kinodynamicrrt") {
             RAVELOG_WARN("KinodynamicRRT is under development, please use with caution\n");
             return InterfaceBasePtr(new KinodynamicRRTPlanner(penv));
+        }
+        else if( interfacename == "georrt") {
+            RAVELOG_WARN("GeoRRT is under development, please use with caution\n");
+            return InterfaceBasePtr(new GeoRRTPlanner(penv));
         }
         else if( interfacename == "graspgradient" ) {
             return CreateGraspGradientPlanner(penv,sinput);
@@ -99,6 +104,7 @@ void GetPluginAttributesValidated(PLUGININFO& info)
     info.interfacenames[PT_Planner].push_back("RAStar");
     info.interfacenames[PT_Planner].push_back("BiRRT");
     info.interfacenames[PT_Planner].push_back("BasicRRT");
+    info.interfacenames[PT_Planner].push_back("GeoRRT");
     info.interfacenames[PT_Planner].push_back("ExplorationRRT");
     info.interfacenames[PT_Planner].push_back("KinodynamicRRT");
     info.interfacenames[PT_Planner].push_back("GraspGradient");
