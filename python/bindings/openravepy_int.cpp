@@ -17,6 +17,7 @@
 #include "openravepy_int.h"
 
 #include <openrave/utils.h>
+#include <boost/python/stl_iterator.hpp>
 
 namespace openravepy
 {
@@ -1093,6 +1094,38 @@ public:
         return modules;
     }
 
+    object GetForces()
+    {
+        std::vector<std::vector<double> > cppforces = _penv->GetForces();
+        //flatten to double*
+        int N = cppforces.size();
+        int M = cppforces.at(0).size();
+
+        double dforces[N*M];
+        for(int i=0;i<N;i++){
+                for(int j=0;j<M;j++){
+                        dforces[i*M+j] = cppforces.at(i).at(j);
+                }
+        }
+        
+        std::vector<npy_intp> dims;
+        dims.push_back( npy_intp(N) );
+        dims.push_back( npy_intp(M) );
+
+        object pyforce = toPyArrayN(dforces, dims);
+        return pyforce;
+    }
+    void SetForces(object forces)
+    {
+        std::cout<<len(forces)<<std::endl;
+        std::vector<std::vector<double> > cppforces;
+        for(int i =0;i<len(forces); i++){
+                std::vector<double> vf = ExtractArray<double>(forces[i]);
+                cppforces.push_back(vf);
+        }
+        _penv->SetForces(cppforces);
+    }
+
     bool SetPhysicsEngine(PyPhysicsEngineBasePtr pengine)
     {
         return _penv->SetPhysicsEngine(openravepy::GetPhysicsEngine(pengine));
@@ -1960,6 +1993,8 @@ Because race conditions can pop up when trying to lock the openrave environment 
                     .def("GetModules",&PyEnvironmentBase::GetModules, DOXY_FN(EnvironmentBase,GetModules))
                     .def("GetLoadedProblems",&PyEnvironmentBase::GetModules, DOXY_FN(EnvironmentBase,GetModules))
                     .def("SetPhysicsEngine",&PyEnvironmentBase::SetPhysicsEngine,args("physics"), DOXY_FN(EnvironmentBase,SetPhysicsEngine))
+                    .def("SetForces",&PyEnvironmentBase::SetForces,args("forces"), DOXY_FN(EnvironmentBase,SetForces))
+                    .def("GetForces",&PyEnvironmentBase::GetForces, DOXY_FN(EnvironmentBase,GetForces))
                     .def("GetPhysicsEngine",&PyEnvironmentBase::GetPhysicsEngine, DOXY_FN(EnvironmentBase,GetPhysicsEngine))
                     .def("RegisterBodyCallback",&PyEnvironmentBase::RegisterBodyCallback,args("callback"), DOXY_FN(EnvironmentBase,RegisterBodyCallback))
                     .def("RegisterCollisionCallback",&PyEnvironmentBase::RegisterCollisionCallback,args("callback"), DOXY_FN(EnvironmentBase,RegisterCollisionCallback))

@@ -179,7 +179,7 @@ private:
          */
         virtual void SetConfigurationSpecification(EnvironmentBasePtr env, const ConfigurationSpecification& spec);
 
-        /// \brief veriries that the configuration space and all parameters are consistent
+        /// \brief verifies that the configuration space and all parameters are consistent
         ///
         /// Assumes at minimum that  _setstatevaluesfn and _getstatefn are set. Correct environment should be
         /// locked when this function is called since _getstatefn will be called.

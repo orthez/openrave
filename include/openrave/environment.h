@@ -432,6 +432,15 @@ public:
     /// \param timeout microseconds to wait before throwing an exception, if 0, will block indefinitely.
     /// \throw openrave_exception with ORE_Timeout error code
     virtual void GetRobots(std::vector<RobotBasePtr>& robots, uint64_t timeout=0) const = 0;
+    //
+    /// \brief Set the forces inside each environment cell
+    ///
+    /// \param one force vector for each cell of the environment
+    /// \param timeout microseconds to wait before throwing an exception, if 0, will block indefinitely.
+    /// \throw openrave_exception with ORE_Timeout error code
+    virtual void SetForces(std::vector<std::vector<double> >& forces, uint64_t timeout=0) = 0;
+    virtual std::vector<std::vector<double> > GetForces() const = 0;
+    virtual std::vector<double> GetForceXYZ(double x, double y, double z) const = 0;
 
     /// \brief Retrieve published bodies, completes even if environment is locked. <b>[multi-thread safe]</b>
     ///
