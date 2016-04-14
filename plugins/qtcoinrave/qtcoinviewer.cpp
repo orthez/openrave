@@ -1790,7 +1790,6 @@ void* QtCoinViewer::_drawarrow(SoSwitch* handle, const RaveVector<float>& p1, co
     if( handle == NULL ) {
         return handle;
     }
-    std::cout << color[3] << std::endl;
     SoSeparator* pparent = new SoSeparator(); handle->addChild(pparent);
     pparent->addChild(new SoTransform());
     SoSeparator* psep = new SoSeparator();
@@ -1848,8 +1847,8 @@ void* QtCoinViewer::_drawarrow(SoSwitch* handle, const RaveVector<float>& p1, co
     //place a cone for the arrow tip
 
     SoCone* cn = new SoCone();
-    cn->bottomRadius = fwidth;
-    cn->height = coneheight;
+    cn->bottomRadius = 3*fwidth;
+    cn->height = 2*coneheight;
     ptrans = new SoTransform();
     ptrans->rotation.setValue(SbVec3f(vaxis.x, vaxis.y, vaxis.z), angle);
     linetranslation = p2 - coneheight/2.0f*direction;
