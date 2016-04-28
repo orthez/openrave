@@ -1848,7 +1848,7 @@ void* QtCoinViewer::_drawarrow(SoSwitch* handle, const RaveVector<float>& p1, co
 
     SoCone* cn = new SoCone();
     cn->bottomRadius = 2*fwidth;
-    cn->height = 4*coneheight;
+    cn->height = 8*coneheight;
     ptrans = new SoTransform();
     ptrans->rotation.setValue(SbVec3f(vaxis.x, vaxis.y, vaxis.z), angle);
     linetranslation = p2 - coneheight/2.0f*direction;
