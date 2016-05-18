@@ -1719,6 +1719,18 @@ public:
         }
         return handles;
     }
+    virtual OpenRAVE::GraphHandlePtr drawcone(const RaveVector<float>& pos, const RaveVector<float>& dir, float height, float aperture, const RaveVector<float>& color)
+    {
+        boost::timed_mutex::scoped_lock lock(_mutexInterfaces);
+        if( _listViewers.size() == 0 ) {
+            return OpenRAVE::GraphHandlePtr();
+        }
+        GraphHandleMultiPtr handles(new GraphHandleMulti());
+        FOREACHC(itviewer, _listViewers) {
+            handles->Add((*itviewer)->drawcone(pos,dir,height,aperture,color));
+        }
+        return handles;
+    }
     virtual OpenRAVE::GraphHandlePtr drawbox(const RaveVector<float>& vpos, const RaveVector<float>& vextents)
     {
         boost::timed_mutex::scoped_lock lock(_mutexInterfaces);

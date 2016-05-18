@@ -956,6 +956,41 @@ GraphHandlePtr QtCoinViewer::drawarrow(const RaveVector<float>& p1, const RaveVe
     return GraphHandlePtr(new PrivateGraphHandle(shared_viewer(), handle));
 }
 
+class DrawConeMessage : public QtCoinViewer::EnvMessage
+{
+public:
+    DrawConeMessage(QtCoinViewerPtr pviewer, SoSwitch* handle, const RaveVector<float>& pos,
+                        const RaveVector<float>& dir, 
+                        float height, 
+                        float aperture, 
+                        const RaveVector<float>& color)
+        : EnvMessage(pviewer, NULL, false), _pos(pos), _dir(dir), _color(color), _handle(handle), _height(height), _aperture(aperture) {
+    }
+
+    virtual void viewerexecute() {
+        QtCoinViewerPtr pviewer = _pviewer.lock();
+        if( !pviewer ) {
+            return;
+        }
+        void* ret = pviewer->_drawcone(_handle, _pos, _dir, _height, _aperture, _color);
+        BOOST_ASSERT( _handle == ret );
+        EnvMessage::viewerexecute();
+    }
+
+private:
+    RaveVector<float> _pos, _dir, _color;
+    SoSwitch* _handle;
+    float _height, _aperture;
+};
+
+GraphHandlePtr QtCoinViewer::drawcone(const RaveVector<float>& pos, const RaveVector<float>& dir, float height, float aperture, const RaveVector<float>& color)
+{
+    SoSwitch* handle = _createhandle();
+    EnvMessagePtr pmsg(new DrawConeMessage(shared_viewer(), handle, pos, dir, height, aperture, color));
+    pmsg->callerexecute(false);
+    return GraphHandlePtr(new PrivateGraphHandle(shared_viewer(), handle));
+}
+
 class DrawBoxMessage : public QtCoinViewer::EnvMessage
 {
 public:
@@ -1864,6 +1899,60 @@ void* QtCoinViewer::_drawarrow(SoSwitch* handle, const RaveVector<float>& p1, co
     _pFigureRoot->addChild(handle);
     return handle;
 }
+void* QtCoinViewer::_drawcone(SoSwitch* handle, const RaveVector<float>& pos, const RaveVector<float>& dir, float height, float aperture, const RaveVector<float>& color)
+{
+    if( handle == NULL ) {
+        return handle;
+    }
+    SoSeparator* pparent = new SoSeparator(); handle->addChild(pparent);
+    pparent->addChild(new SoTransform());
+    SoSeparator* psep = new SoSeparator();
+    SoTransform* ptrans = new SoTransform();
+    SoDrawStyle* _style = new SoDrawStyle();
+    _style->style = SoDrawStyle::FILLED;
+    pparent->addChild(_style);
+
+    RaveVector<float> ndir(dir);
+    ndir.normalize3();
+
+    //compute color material
+    SoMaterial* mtrl = new SoMaterial;
+    mtrl->diffuseColor = SbColor(color[0],color[1],color[2]);
+    mtrl->ambientColor = SbColor(color[0],color[1],color[2]);
+    mtrl->transparency = (1.0-color[3]);
+    mtrl->setOverride(true);
+    pparent->addChild(mtrl);
+
+    //rotate to face point
+    RaveVector<float> qrot = quatRotateDirection(RaveVector<dReal>(0,1,0),RaveVector<dReal>(dir));
+    RaveVector<float> vaxis = axisAngleFromQuat(qrot);
+    dReal angle = RaveSqrt(vaxis.lengthsqr3());
+    if( angle > 0 ) {
+        vaxis *= 1/angle;
+    }
+    else {
+        vaxis = RaveVector<float>(1,0,0);
+    }
+
+    SoCone* cn = new SoCone();
+    cn->bottomRadius = aperture;
+    cn->height = height;
+    ptrans = new SoTransform();
+    ptrans->rotation.setValue(SbVec3f(vaxis.x, vaxis.y, vaxis.z), angle);
+    //linetranslation = p2 - height/2.0f*direction;
+    ptrans->translation.setValue(pos.x, pos.y, pos.z);
+
+    psep = new SoSeparator();
+
+    psep->addChild(ptrans);
+    psep->addChild(cn);
+
+    pparent->addChild(psep);
+
+    _pFigureRoot->addChild(handle);
+    return handle;
+}
+
 
 void* QtCoinViewer::_drawbox(SoSwitch* handle, const RaveVector<float>& vpos, const RaveVector<float>& vextents)
 {

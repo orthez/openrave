@@ -1441,6 +1441,14 @@ public:
         }
         return toPyGraphHandle(_penv->drawarrow(ExtractVector3(op1),ExtractVector3(op2),linewidth,vcolor));
     }
+    object drawcone(object opos, object odir, float height, float aperture, object ocolor=object())
+    {
+        RaveVector<float> vcolor(1,0.5,0.5,1);
+        if( !IS_PYTHONOBJECT_NONE(ocolor) ) {
+            vcolor = ExtractVector34(ocolor,1.0f);
+        }
+        return toPyGraphHandle(_penv->drawcone(ExtractVector3(opos),ExtractVector3(odir),height,aperture,vcolor));
+    }
 
     object drawbox(object opos, object oextents, object ocolor=object())
     {
@@ -1737,6 +1745,7 @@ BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(plot3_overloads, plot3, 2, 4)
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(drawlinestrip_overloads, drawlinestrip, 2, 4)
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(drawlinelist_overloads, drawlinelist, 2, 4)
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(drawarrow_overloads, drawarrow, 2, 4)
+BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(drawcone_overloads, drawcone, 4, 5)
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(drawbox_overloads, drawbox, 2, 3)
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(drawtrimesh_overloads, drawtrimesh, 1, 3)
 BOOST_PYTHON_MEMBER_FUNCTION_OVERLOADS(SendCommand_overloads, SendCommand, 1, 3)
@@ -2004,6 +2013,7 @@ Because race conditions can pop up when trying to lock the openrave environment 
                     .def("drawlinestrip",&PyEnvironmentBase::drawlinestrip,drawlinestrip_overloads(args("points","linewidth","colors","drawstyle"), DOXY_FN(EnvironmentBase,drawlinestrip "const float; int; int; float; const float")))
                     .def("drawlinelist",&PyEnvironmentBase::drawlinelist,drawlinelist_overloads(args("points","linewidth","colors","drawstyle"), DOXY_FN(EnvironmentBase,drawlinelist "const float; int; int; float; const float")))
                     .def("drawarrow",&PyEnvironmentBase::drawarrow,drawarrow_overloads(args("p1","p2","linewidth","color"), DOXY_FN(EnvironmentBase,drawarrow)))
+                    .def("drawcone",&PyEnvironmentBase::drawcone,drawcone_overloads(args("pos","direction","height","aperture","color"), DOXY_FN(EnvironmentBase,drawcone)))
                     .def("drawbox",&PyEnvironmentBase::drawbox,drawbox_overloads(args("pos","extents","color"), DOXY_FN(EnvironmentBase,drawbox)))
                     .def("drawplane",drawplane1,args("transform","extents","texture"), DOXY_FN(EnvironmentBase,drawplane))
                     .def("drawplane",drawplane2,args("transform","extents","texture"), DOXY_FN(EnvironmentBase,drawplane))

@@ -587,6 +587,13 @@ public:
     /// \param color the rgb color of the point. The last component of the color is used for alpha blending.
     /// \return handle to plotted points, graph is removed when handle is destroyed (goes out of scope). This requires the user to always store the handle in a persistent variable if the plotted graphics are to remain on the viewer.
     virtual OpenRAVE::GraphHandlePtr drawarrow(const RaveVector<float>& p1, const RaveVector<float>& p2, float fwidth, const RaveVector<float>& color = RaveVector<float>(1,0.5,0.5,1)) = 0;
+    /// \brief Draws a cone pos is start. <b>[multi-thread safe]</b>
+    ///
+    /// \param color the rgb color of the point. The last component of the color is used for alpha blending.
+    /// \return handle to plotted points, graph is removed when handle is destroyed (goes out of scope). This requires the user to always store the handle in a persistent variable if the plotted graphics are to remain on the viewer.
+
+    virtual OpenRAVE::GraphHandlePtr drawcone(const RaveVector<float>& pos, const RaveVector<float>& dir, float height, float aperture, const RaveVector<float>& color = RaveVector<float>(1,0.5,0.5,1)) = 0;
+
 
     /// \brief Draws a box. <b>[multi-thread safe]</b>
     ///
