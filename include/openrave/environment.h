@@ -440,6 +440,15 @@ public:
     /// \param timeout microseconds to wait before throwing an exception, if 0, will block indefinitely.
     /// \throw openrave_exception with ORE_Timeout error code
     virtual void GetRobots(std::vector<RobotBasePtr>& robots, uint64_t timeout=0) const = 0;
+    //
+    /// \brief Set the forces inside each environment cell
+    ///
+    /// \param one force vector for each cell of the environment
+    /// \param timeout microseconds to wait before throwing an exception, if 0, will block indefinitely.
+    /// \throw openrave_exception with ORE_Timeout error code
+    virtual void SetForces(std::vector<std::vector<double> >& forces, uint64_t timeout=0) = 0;
+    virtual std::vector<std::vector<double> > GetForces() const = 0;
+    virtual std::vector<double> GetForceXYZ(double x, double y, double z) const = 0;
 
     /// \brief Retrieve published bodies, completes even if environment is locked. <b>[multi-thread safe]</b>
     ///
@@ -586,6 +595,13 @@ public:
     /// \param color the rgb color of the point. The last component of the color is used for alpha blending.
     /// \return handle to plotted points, graph is removed when handle is destroyed (goes out of scope). This requires the user to always store the handle in a persistent variable if the plotted graphics are to remain on the viewer.
     virtual OpenRAVE::GraphHandlePtr drawarrow(const RaveVector<float>& p1, const RaveVector<float>& p2, float fwidth, const RaveVector<float>& color = RaveVector<float>(1,0.5,0.5,1)) = 0;
+    /// \brief Draws a cone pos is start. <b>[multi-thread safe]</b>
+    ///
+    /// \param color the rgb color of the point. The last component of the color is used for alpha blending.
+    /// \return handle to plotted points, graph is removed when handle is destroyed (goes out of scope). This requires the user to always store the handle in a persistent variable if the plotted graphics are to remain on the viewer.
+
+    virtual OpenRAVE::GraphHandlePtr drawcone(const RaveVector<float>& pos, const RaveVector<float>& dir, float height, float aperture, const RaveVector<float>& color = RaveVector<float>(1,0.5,0.5,1)) = 0;
+
 
     /// \brief Draws a box. <b>[multi-thread safe]</b>
     ///

@@ -157,6 +157,8 @@ public:
     virtual GraphHandlePtr drawlinelist(const float* ppoints, int numPoints, int stride, float fwidth, const float* colors);
 
     virtual GraphHandlePtr drawarrow(const RaveVector<float>& p1, const RaveVector<float>& p2, float fwidth, const RaveVector<float>& color);
+    virtual GraphHandlePtr drawcone(const RaveVector<float>& pos, const RaveVector<float>& dir, float height, float aperture, const RaveVector<float>& color);
+
     virtual GraphHandlePtr drawbox(const RaveVector<float>& vpos, const RaveVector<float>& vextents);
     virtual GraphHandlePtr drawplane(const RaveTransform<float>& tplane, const RaveVector<float>& vextents, const boost::multi_array<float,3>& vtexture);
     virtual GraphHandlePtr drawtrimesh(const float* ppoints, int stride, const int* pIndices, int numTriangles, const RaveVector<float>& color);
@@ -315,6 +317,7 @@ public:
     virtual void* _drawlinelist(SoSwitch* handle, const float* ppoints, int numPoints, int stride, float fwidth, const float* colors);
 
     virtual void* _drawarrow(SoSwitch* handle, const RaveVector<float>& p1, const RaveVector<float>& p2, float fwidth, const RaveVector<float>& color);
+    virtual void* _drawcone(SoSwitch* handle, const RaveVector<float>& pos, const RaveVector<float>& dir, float height, float aperture, const RaveVector<float>& color);
 
     virtual void* _drawbox(SoSwitch* handle, const RaveVector<float>& vpos, const RaveVector<float>& vextents);
     virtual void* _drawplane(SoSwitch* handle, const RaveTransform<float>& tplane, const RaveVector<float>& vextents, const boost::multi_array<float,3>& vtexture);
@@ -505,6 +508,7 @@ public:
     friend class SetCameraMessage;
     friend class DrawMessage;
     friend class DrawArrowMessage;
+    friend class DrawConeMessage;
     friend class DrawBoxMessage;
     friend class DrawPlaneMessage;
     friend class DrawTriMeshMessage;
