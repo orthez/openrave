@@ -19,7 +19,7 @@
 namespace kinorrt{
         using namespace simple_rrt_planner;
         const double dtime = 0.01;
-        const int N_FORWARD_STEPS = 5;
+        const int N_FORWARD_STEPS = 20;
 
         const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
         const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
@@ -71,7 +71,7 @@ namespace kinorrt{
                         double ddt = (dt-qq.dt)*(dt-qq.dt);
 
                         //return sqrtf(dx+dy+dz)+dt + sqrtf(ddx+ddy+ddz) + ddt;
-                        return sqrtf(dx+dy+dz+dt) + sqrtf(ddx+ddy+ddz+ddt);
+                        return sqrtf(dx+dy+dz+dt) + 0.1*sqrtf(ddx+ddy+ddz+ddt);
                 }
                 bool IsInCollision(){
                         std::vector<double> dd = this->toDouble();
@@ -167,7 +167,8 @@ namespace kinorrt{
         bool goal_reached_fn( const Configuration &q, const Configuration &goal ){
                 double dx = (q.x - goal.x)*(q.x - goal.x);
                 double dy = (q.y - goal.y)*(q.y - goal.y);
-                bool reached = (sqrtf(dx+dy) < epsilon);
+                double dt = (q.t - goal.t)*(q.t - goal.t);
+                bool reached = (sqrtf(dx+dy+dt) < epsilon);
                 if(reached){
                         std::cout << "goal reached" << std::endl;
                 }
@@ -216,7 +217,7 @@ namespace kinorrt{
                 const double dy_min = 0.0;
                 const double dy_max = maxvel[1];
                 const double dz_min = 0.0;
-                const double dz_max = maxvel[2];
+                const double dz_max = 0.0;
                 const double dt_min = -maxvel[3];
                 const double dt_max =  maxvel[3];
 
@@ -267,8 +268,8 @@ namespace kinorrt{
                 std::vector<double> dd = from.toDouble();
                 dd[2] = Z_INSIDE_FLOOR;
                 Configuration::robot->SetDOFValues(dd);
-                std::vector<double> force = Configuration::env->GetForceXYZ( from.x, from.y, from.z );
-                std::cout << force[0] << "|" << force[1] << "(" << from.x << "|" << from.y << ")" << std::endl;
+                std::vector<double> force = Configuration::env->GetForceXYZ( dd[0], dd[1], dd[2] );
+                //std::cout << force[0] << "|" << force[1] << "(" << from.x << "|" << from.y << "|" << from.z << ")" << std::endl;
                 dd[2] = Z_DEFAULT;
                 Configuration::robot->SetDOFValues(dd);
                 //#####################################################################
