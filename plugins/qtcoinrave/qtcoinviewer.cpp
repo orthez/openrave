@@ -1924,7 +1924,7 @@ void* QtCoinViewer::_drawcone(SoSwitch* handle, const RaveVector<float>& pos, co
     pparent->addChild(mtrl);
 
     //rotate to face point
-    RaveVector<float> qrot = quatRotateDirection(RaveVector<dReal>(0,1,0),RaveVector<dReal>(dir));
+    RaveVector<float> qrot = quatRotateDirection(RaveVector<dReal>(0,-1,0),RaveVector<dReal>(dir));
     RaveVector<float> vaxis = axisAngleFromQuat(qrot);
     dReal angle = RaveSqrt(vaxis.lengthsqr3());
     if( angle > 0 ) {
@@ -1939,8 +1939,9 @@ void* QtCoinViewer::_drawcone(SoSwitch* handle, const RaveVector<float>& pos, co
     cn->height = height;
     ptrans = new SoTransform();
     ptrans->rotation.setValue(SbVec3f(vaxis.x, vaxis.y, vaxis.z), angle);
-    //linetranslation = p2 - height/2.0f*direction;
-    ptrans->translation.setValue(pos.x, pos.y, pos.z);
+    RaveVector<float> apex;
+    apex = pos + height/2.0f*dir;
+    ptrans->translation.setValue(apex.x, apex.y, apex.z);
 
     psep = new SoSeparator();
 

@@ -10,7 +10,7 @@
 #include "rrt.h"
 
 #define DEBUG 0
-#define DEBUG_VISUALIZE 0
+#define DEBUG_VISUALIZE 1
 
 //##############################################################################
 //build up the simple_rrt structures
@@ -19,12 +19,12 @@
 namespace kinorrt{
         using namespace simple_rrt_planner;
         const double dtime = 0.01;
-        const int N_FORWARD_STEPS = 10;
+        const int N_FORWARD_STEPS = 5;
 
-        const double Z_DEFAULT = 0.15; //default z value for robot, such that it is not in collision with floor (almost touching)
+        const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
         const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
         const std::chrono::duration<double> time_limit(2000.0);
-        const double epsilon = 0.01; //epsilon region around goal
+        const double epsilon = 0.02; //epsilon region around goal
 
         template<class T>
         std::ostream& operator << (std::ostream& os, const std::vector<T>& v) 
@@ -61,14 +61,17 @@ namespace kinorrt{
                         double dx = (x-qq.x)*(x-qq.x);
                         double dy = (y-qq.y)*(y-qq.y);
                         double dz = (z-qq.z)*(z-qq.z);
-                        double dt = min(fabs(t-qq.t),2*M_PI-fabs(t-qq.t));
+                        //double dt = min(fabs(t-qq.t),2*M_PI-fabs(t-qq.t));
+                        double dt = (t-qq.t)*(t-qq.t);
 
                         double ddx = (dx-qq.dx)*(dx-qq.dx);
                         double ddy = (dy-qq.dy)*(dy-qq.dy);
                         double ddz = (dz-qq.dz)*(dz-qq.dz);
-                        double ddt = min(fabs(dt-qq.dt),2*M_PI-fabs(dt-qq.dt));
+                        //double ddt = min(fabs(dt-qq.dt),2*M_PI-fabs(dt-qq.dt));
+                        double ddt = (dt-qq.dt)*(dt-qq.dt);
 
-                        return sqrtf(dx+dy+dz)+dt + sqrtf(ddx+ddy+ddz) + ddt;
+                        //return sqrtf(dx+dy+dz)+dt + sqrtf(ddx+ddy+ddz) + ddt;
+                        return sqrtf(dx+dy+dz+dt) + sqrtf(ddx+ddy+ddz+ddt);
                 }
                 bool IsInCollision(){
                         std::vector<double> dd = this->toDouble();
@@ -265,6 +268,7 @@ namespace kinorrt{
                 dd[2] = Z_INSIDE_FLOOR;
                 Configuration::robot->SetDOFValues(dd);
                 std::vector<double> force = Configuration::env->GetForceXYZ( from.x, from.y, from.z );
+                std::cout << force[0] << "|" << force[1] << "(" << from.x << "|" << from.y << ")" << std::endl;
                 dd[2] = Z_DEFAULT;
                 Configuration::robot->SetDOFValues(dd);
                 //#####################################################################
