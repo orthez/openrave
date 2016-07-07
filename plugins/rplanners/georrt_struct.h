@@ -21,7 +21,7 @@ namespace georrt{
         const double dtime = 0.01;
         const int N_FORWARD_STEPS = 10;
 
-        const double Z_DEFAULT = 0.15; //default z value for robot, such that it is not in collision with floor (almost touching)
+        const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
         const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
         const std::chrono::duration<double> time_limit(2000.0);
         const double epsilon = 0.01; //epsilon region around goal

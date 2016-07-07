@@ -11,6 +11,7 @@
 
 #define DEBUG 0
 #define DEBUG_VISUALIZE 1
+const int VISUALIZATION_MAX_LINES = 1e5;
 
 //##############################################################################
 //build up the simple_rrt structures
@@ -18,13 +19,13 @@
 
 namespace kinorrt{
         using namespace simple_rrt_planner;
-        const double dtime = 0.01;
-        const int N_FORWARD_STEPS = 20;
+        const double dtime = 0.005;
+        const int N_FORWARD_STEPS = 40;
 
         const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
         const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
-        const std::chrono::duration<double> time_limit(2000.0);
-        const double epsilon = 0.02; //epsilon region around goal
+        const std::chrono::duration<double> time_limit(3600.0);
+        const double epsilon = 0.04; //epsilon region around goal
 
         template<class T>
         std::ostream& operator << (std::ostream& os, const std::vector<T>& v) 
@@ -134,17 +135,16 @@ namespace kinorrt{
                 std::cout << "---------------------------------------------------" << std::endl;
                 std::cout << "Generated trajectory" << std::endl;
                 std::cout << "---------------------------------------------------" << std::endl;
-                std::cout << "[begin] : " << tau.front() << std::endl;
-                std::cout << "[end]   : " << tau.back() << std::endl;
-                //for ( ConfigurationPath::const_iterator it = tau.begin(); it != tau.end(); it++) {
-                        //cout << "[" << ctr++ << "]: " << (*it) << std::endl;
-                //}
-                std::cout << "---------------------------------------------------" << std::endl;
                 std::cout << "Waypoints: " << tau.size() << std::endl;
                 std::cout << "---------------------------------------------------" << std::endl;
                 for ( Statistics::const_iterator it = stats.begin(); it != stats.end(); it++) {
                         cout << it->first << ":" << it->second << endl;
                 }
+                std::cout << "[begin] : " << tau.front() << std::endl;
+                std::cout << "[end]   : " << tau.back() << std::endl;
+                //for ( ConfigurationPath::const_iterator it = tau.begin(); it != tau.end(); it++) {
+                        //cout << "[" << ctr++ << "]: " << (*it) << std::endl;
+                //}
                 std::cout << "---------------------------------------------------" << std::endl;
                 std::cout << "Sampling" << std::endl;
                 std::cout << "---------------------------------------------------" << std::endl;
@@ -167,8 +167,9 @@ namespace kinorrt{
         bool goal_reached_fn( const Configuration &q, const Configuration &goal ){
                 double dx = (q.x - goal.x)*(q.x - goal.x);
                 double dy = (q.y - goal.y)*(q.y - goal.y);
+                double dz = (q.z - goal.z)*(q.z - goal.z);
                 double dt = (q.t - goal.t)*(q.t - goal.t);
-                bool reached = (sqrtf(dx+dy+dt) < epsilon);
+                bool reached = (sqrtf(dx+dy) < epsilon);
                 if(reached){
                         std::cout << "goal reached" << std::endl;
                 }
@@ -180,7 +181,6 @@ namespace kinorrt{
         //      (randomly- or deterministically-sampled)
         //      std::function<T(void)>& state_sampling_fn
         //##############################################################################
-
         double rand_interval( double a, double b){
                 //return r \in [a,b]
                 assert(b>=a);
@@ -189,6 +189,20 @@ namespace kinorrt{
                 return rab;
 
         }
+        double rand_interval_max( double a, double b){
+                //return r \in [a,b]
+                assert(b>=a);
+                double r = ((double)rand()/(double)RAND_MAX);
+                if(r>0.45){
+                        if(r>0.9){
+                                return rand_interval( a, b);
+                        }
+                        return b;
+                }else{
+                        return a;
+                }
+        }
+
         Configuration state_sampling_fn(void){
 
                 std::vector<dReal> qlim_l;
@@ -286,9 +300,9 @@ namespace kinorrt{
                 const double a_ang_min = -acc_lim[3];
                 const double a_ang_max = acc_lim[3];
 
-                double a1 = rand_interval(a_lin_min,a_lin_max);
-                double a2 = rand_interval(a_ang_min,a_ang_max);
-                double a3 = rand_interval(a_lie_min,a_lie_max);
+                double a1 = rand_interval_max(a_lin_min,a_lin_max);
+                double a2 = rand_interval_max(a_ang_min,a_ang_max);
+                double a3 = rand_interval_max(a_lie_min,a_lie_max);
 
                 //#####################################################################
                 // CREATE FORCE FIELDS x_{k+1} = f(x_k,u_k)
@@ -355,21 +369,35 @@ namespace kinorrt{
                         const double MAX_VELOCITY = sqrtf(maxvel[0]*maxvel[0] + maxvel[1]*maxvel[1]);
                         double velocity = sqrtf(dxn*dxn + dyn*dyn);
                         double color_scale = velocity/MAX_VELOCITY;
+                        if(color_scale > 1.0){
+                                color_scale = 1.0;
+                        }
 
-                        RaveVector<float> redish(0.3,0.0,0.4,1);
-                        RaveVector<float> blue(0.0,0.0,1.0,1);
+                        //RaveVector<float> redish(0.3,0.0,0.4,1);
+                        //const RaveVector<float> red(1.0,0.0,0.0,1);
 
-                        RaveVector<float> vcolor = color_scale*redish + (1.0-color_scale)*blue;
+                        RaveVector<float> white(1.0-color_scale,1.0-color_scale,1.0-color_scale,1);
+                        RaveVector<float> red(color_scale,0.0,0.0,1);
+                        RaveVector<float> blue(0.0,0.0,color_scale,1);
+                        const RaveVector<float> vcolor = blue+white;
+
 
                         vector<RaveVector<float> > vpts;
                         RaveVector<float> rf(from.x,from.y,from.z+0.05);
                         RaveVector<float> nf(next.x,next.y,next.z+0.05);
                         vpts.push_back(rf);
                         vpts.push_back(nf);
+                        //std::cout <<  "(" << color_scale << ")" << std::endl;
                         //Configuration::handle.push_back(Configuration::env->drawlinestrip(points, numpts, stride, fwidth, &vcolor[0]));
+
+                        // clear up first element
+                        while(Configuration::handle.size() >= VISUALIZATION_MAX_LINES){
+                                Configuration::handle.erase( Configuration::handle.begin() );
+                        }
                         Configuration::handle.push_back(
-                                        Configuration::env->drawlinestrip(&vpts[0].x, vpts.size(), sizeof(vpts[0]), fwidth, &vcolor[0])
-                                        );
+                                Configuration::env->drawlinestrip(&vpts[0].x, vpts.size(), sizeof(vpts[0]), fwidth, vcolor)
+                                );
+
                 }
 
                 return true;

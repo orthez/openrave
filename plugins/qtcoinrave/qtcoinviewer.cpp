@@ -1666,17 +1666,17 @@ void* QtCoinViewer::_drawlinestrip(SoSwitch* handle, const float* ppoints, int n
 
     SoCoordinate3* vprop = new SoCoordinate3();
     vprop->point.setValues(0,2*(numPoints-1),(float(*)[3])&mypoints[0]);
-    pparent->addChild(vprop);
 
     SoDrawStyle* style = new SoDrawStyle();
     style->style = SoDrawStyle::LINES;
     style->lineWidth = fwidth;
-    pparent->addChild(style);
 
     SoLineSet* pointset = new SoLineSet();
     vector<int> vinds(numPoints-1,2);
     pointset->numVertices.setValues(0,vinds.size(), &vinds[0]);
 
+    pparent->addChild(vprop);
+    pparent->addChild(style);
     pparent->addChild(pointset);
 
     _pFigureRoot->addChild(handle);
