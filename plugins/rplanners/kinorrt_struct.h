@@ -10,7 +10,7 @@
 #include "rrt.h"
 
 #define DEBUG 0
-#define DEBUG_VISUALIZE 1
+#define DEBUG_VISUALIZE 0
 const int VISUALIZATION_MAX_LINES = 1e5;
 
 //##############################################################################
@@ -25,6 +25,7 @@ namespace kinorrt{
         const double Z_DEFAULT = 0.1; //default z value for robot, such that it is not in collision with floor (almost touching)
         const double Z_INSIDE_FLOOR = -0.1; //make sure that robot is in collision with floor
         const std::chrono::duration<double> time_limit(3600.0);
+        //const std::chrono::duration<double> time_limit(0.1);
         const double epsilon = 0.04; //epsilon region around goal
 
         template<class T>
@@ -132,26 +133,32 @@ namespace kinorrt{
         void dump_results(const ResultsPair &res){
                 ConfigurationPath tau = res.first;
                 Statistics stats = res.second;
-                std::cout << "---------------------------------------------------" << std::endl;
-                std::cout << "Generated trajectory" << std::endl;
-                std::cout << "---------------------------------------------------" << std::endl;
-                std::cout << "Waypoints: " << tau.size() << std::endl;
-                std::cout << "---------------------------------------------------" << std::endl;
-                for ( Statistics::const_iterator it = stats.begin(); it != stats.end(); it++) {
-                        cout << it->first << ":" << it->second << endl;
+                if(tau.size() > 0){
+                        std::cout << "---------------------------------------------------" << std::endl;
+                        std::cout << "Generated trajectory" << std::endl;
+                        std::cout << "---------------------------------------------------" << std::endl;
+                        std::cout << "Waypoints: " << tau.size() << std::endl;
+                        std::cout << "---------------------------------------------------" << std::endl;
+                        for ( Statistics::const_iterator it = stats.begin(); it != stats.end(); it++) {
+                                cout << it->first << ":" << it->second << endl;
+                        }
+                        std::cout << "[begin] : " << tau.front() << std::endl;
+                        std::cout << "[end]   : " << tau.back() << std::endl;
+                        //for ( ConfigurationPath::const_iterator it = tau.begin(); it != tau.end(); it++) {
+                                //cout << "[" << ctr++ << "]: " << (*it) << std::endl;
+                        //}
+                        std::cout << "---------------------------------------------------" << std::endl;
+                        std::cout << "Sampling" << std::endl;
+                        std::cout << "---------------------------------------------------" << std::endl;
+                        std::cout << "Samples: " << Configuration::samples << std::endl;
+                        std::cout << "Rejected: " << Configuration::samples_rejected << std::endl;
+                        std::cout << "Percentage Rejected: " << (double)Configuration::samples_rejected/(double)Configuration::samples << std::endl;
+                        std::cout << "---------------------------------------------------" << std::endl;
+                }else{
+                        std::cout << "---------------------------------------------------" << std::endl;
+                        std::cout << "No trajectory found in time limit" << std::endl;
+                        std::cout << "---------------------------------------------------" << std::endl;
                 }
-                std::cout << "[begin] : " << tau.front() << std::endl;
-                std::cout << "[end]   : " << tau.back() << std::endl;
-                //for ( ConfigurationPath::const_iterator it = tau.begin(); it != tau.end(); it++) {
-                        //cout << "[" << ctr++ << "]: " << (*it) << std::endl;
-                //}
-                std::cout << "---------------------------------------------------" << std::endl;
-                std::cout << "Sampling" << std::endl;
-                std::cout << "---------------------------------------------------" << std::endl;
-                std::cout << "Samples: " << Configuration::samples << std::endl;
-                std::cout << "Rejected: " << Configuration::samples_rejected << std::endl;
-                std::cout << "Percentage Rejected: " << (double)Configuration::samples_rejected/(double)Configuration::samples << std::endl;
-                std::cout << "---------------------------------------------------" << std::endl;
         }
 
         //##############################################################################

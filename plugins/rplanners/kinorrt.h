@@ -141,7 +141,6 @@ public:
         int Nwaypoints = tau.size();
         if( Nwaypoints == 0 ){ return PS_Failed; }
         
-
         if( ptraj->GetConfigurationSpecification().GetDOF() == 0 ) {
             ptraj->Init(_parameters->_configurationspecification);
         }
